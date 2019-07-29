@@ -23,8 +23,11 @@ import static android.support.v4.media.session.MediaSessionCompat.QueueItem;
  * Interface representing either Local or Remote Playback. The {@link MusicService} works
  * directly with an instance of the Playback object to make the various calls such as
  * play, pause etc.
+ *
+ * 播放控制层接口
  */
 public interface Playback {
+
     /**
      * Start/setup the playback.
      * Resources/listeners would be allocated by implementations.
@@ -80,11 +83,16 @@ public interface Playback {
 
     String getCurrentMediaId();
 
+    /**
+     * 供 {@link PlaybackManager} 实现的回调接口
+     */
     interface Callback {
+
         /**
          * On current music completed.
          */
         void onCompletion();
+
         /**
          * on Playback status changed
          * Implementations can use this callback to update

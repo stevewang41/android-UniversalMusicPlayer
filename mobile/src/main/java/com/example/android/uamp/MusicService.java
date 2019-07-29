@@ -115,8 +115,7 @@ import static com.example.android.uamp.utils.MediaIDHelper.MEDIA_ID_ROOT;
  * @see <a href="README.md">README.md</a> for more details.
  *
  */
-public class MusicService extends MediaBrowserServiceCompat implements
-        PlaybackManager.PlaybackServiceCallback {
+public class MusicService extends MediaBrowserServiceCompat implements PlaybackManager.PlaybackServiceCallback {
 
     private static final String TAG = LogHelper.makeLogTag(MusicService.class);
 
@@ -138,6 +137,7 @@ public class MusicService extends MediaBrowserServiceCompat implements
     private static final int STOP_DELAY = 30000;
 
     private MusicProvider mMusicProvider;
+    /** 持有PlaybackManager实例，构造时将自己传入完成双向关联 */
     private PlaybackManager mPlaybackManager;
 
     private MediaSessionCompat mSession;
@@ -179,8 +179,7 @@ public class MusicService extends MediaBrowserServiceCompat implements
 
                     @Override
                     public void onMetadataRetrieveError() {
-                        mPlaybackManager.updatePlaybackState(
-                                getString(R.string.error_no_metadata));
+                        mPlaybackManager.updatePlaybackState(getString(R.string.error_no_metadata));
                     }
 
                     @Override
@@ -189,21 +188,21 @@ public class MusicService extends MediaBrowserServiceCompat implements
                     }
 
                     @Override
-                    public void onQueueUpdated(String title,
-                                               List<MediaSessionCompat.QueueItem> newQueue) {
+                    public void onQueueUpdated(String title, List<MediaSessionCompat.QueueItem> newQueue) {
                         mSession.setQueue(newQueue);
                         mSession.setQueueTitle(title);
                     }
                 });
 
         LocalPlayback playback = new LocalPlayback(this, mMusicProvider);
+        // 构造 PlaybackManager 时将 QueueManager 作为参数传递进去，使播放控制层成功连接上数据层
         mPlaybackManager = new PlaybackManager(this, getResources(), mMusicProvider, queueManager,
                 playback);
 
         // Start a new MediaSession
         mSession = new MediaSessionCompat(this, "MusicService");
         setSessionToken(mSession.getSessionToken());
-        mSession.setCallback(mPlaybackManager.getMediaSessionCallback());
+        mSession.setCallback(mPlaybackManager.getMediaSessionCallback());   // 设置PlaybackManager中定义的受控端回调实现类
         mSession.setFlags(MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS |
                 MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS);
 
@@ -338,13 +337,11 @@ public class MusicService extends MediaBrowserServiceCompat implements
     public void onLoadChildren(@NonNull final String parentMediaId,
                                @NonNull final Result<List<MediaItem>> result) {
         LogHelper.d(TAG, "OnLoadChildren: parentMediaId=", parentMediaId);
-        if (MEDIA_ID_EMPTY_ROOT.equals(parentMediaId)) {
-            result.sendResult(new ArrayList<MediaItem>());
-        } else if (mMusicProvider.isInitialized()) {
-            // if music library is ready, return immediately
+        if (MEDIA_ID_EMPTY_ROOT.equals(parentMediaId)) {    // 如果之前验证客户端没有权限请求数据，则返回一个空的列表
+            result.sendResult(new ArrayList<>());
+        } else if (mMusicProvider.isInitialized()) {        // 如果音乐库已经准备好了，立即返回
             result.sendResult(mMusicProvider.getChildren(parentMediaId, getResources()));
-        } else {
-            // otherwise, only return results when the music library is retrieved
+        } else {    // 音乐数据检索完毕后返回结果
             result.detach();
             mMusicProvider.retrieveMediaAsync(new MusicProvider.Callback() {
                 @Override

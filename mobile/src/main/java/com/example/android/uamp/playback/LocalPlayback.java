@@ -19,6 +19,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.media.AudioFocusRequest;
 import android.media.AudioManager;
 import android.net.Uri;
 import android.net.wifi.WifiManager;
@@ -63,28 +64,28 @@ public final class LocalPlayback implements Playback {
 
     private static final String TAG = LogHelper.makeLogTag(LocalPlayback.class);
 
-    // The volume we set the media player to when we lose audio focus, but are
-    // allowed to reduce the volume instead of stopping playback.
-    public static final float VOLUME_DUCK = 0.2f;
-    // The volume we set the media player when we have audio focus.
-    public static final float VOLUME_NORMAL = 1.0f;
+    /** 当失去音频焦点，且不需要停止播放，只需要减小音量时，设置的音量大小 */
+    private static final float VOLUME_DUCK = 0.2f;
+    /** 当获取到音频焦点，设置的音量大小 */
+    private static final float VOLUME_NORMAL = 1.0f;
 
-    // we don't have audio focus, and can't duck (play at a low volume)
+    /** 没有获取到音频焦点，也不允许duck状态 */
     private static final int AUDIO_NO_FOCUS_NO_DUCK = 0;
-    // we don't have focus, but can duck (play at a low volume)
+    /** 没有获取到音频焦点，但允许duck状态 */
     private static final int AUDIO_NO_FOCUS_CAN_DUCK = 1;
-    // we have full audio focus
+    /** 获取到音频焦点 */
     private static final int AUDIO_FOCUSED = 2;
+    /** 当前音频焦点的状态 */
+    private int mCurrentAudioFocusState = AUDIO_NO_FOCUS_NO_DUCK;
 
     private final Context mContext;
     private final WifiManager.WifiLock mWifiLock;
     private boolean mPlayOnFocusGain;
     private Callback mCallback;
     private final MusicProvider mMusicProvider;
-    private boolean mAudioNoisyReceiverRegistered;
     private String mCurrentMediaId;
 
-    private int mCurrentAudioFocusState = AUDIO_NO_FOCUS_NO_DUCK;
+
     private final AudioManager mAudioManager;
     private SimpleExoPlayer mExoPlayer;
     private final ExoPlayerEventListener mEventListener = new ExoPlayerEventListener();
@@ -92,24 +93,29 @@ public final class LocalPlayback implements Playback {
     // Whether to return STATE_NONE or STATE_STOPPED when mExoPlayer is null;
     private boolean mExoPlayerNullIsStopped =  false;
 
-    private final IntentFilter mAudioNoisyIntentFilter =
-            new IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY);
+    /** 标识 {@link #mAudioNoisyReceiver} 是否已被注册 */
+    private boolean mAudioNoisyReceiverRegistered;
+    /** 用来注册 {@link #mAudioNoisyReceiver} 的IntentFilter */
+    private final IntentFilter mAudioNoisyIntentFilter = new IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY);
 
-    private final BroadcastReceiver mAudioNoisyReceiver =
-            new BroadcastReceiver() {
-                @Override
-                public void onReceive(Context context, Intent intent) {
-                    if (AudioManager.ACTION_AUDIO_BECOMING_NOISY.equals(intent.getAction())) {
-                        LogHelper.d(TAG, "Headphones disconnected.");
-                        if (isPlaying()) {
-                            Intent i = new Intent(context, MusicService.class);
-                            i.setAction(MusicService.ACTION_CMD);
-                            i.putExtra(MusicService.CMD_NAME, MusicService.CMD_PAUSE);
-                            mContext.startService(i);
-                        }
-                    }
+    /**
+     * 接收 有线耳机拔出 或 无线耳机断开 事件的广播接收者
+     */
+    private final BroadcastReceiver mAudioNoisyReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (AudioManager.ACTION_AUDIO_BECOMING_NOISY.equals(intent.getAction())) {
+                LogHelper.d(TAG, "Headphones disconnected.");
+                // 当音乐正在播放中，通知Service暂停播放音乐（在Service.onStartCommand中处理此命令）
+                if (isPlaying()) {
+                    Intent i = new Intent(context, MusicService.class);
+                    i.setAction(MusicService.ACTION_CMD);
+                    i.putExtra(MusicService.CMD_NAME, MusicService.CMD_PAUSE);
+                    mContext.startService(i);
                 }
-            };
+            }
+        }
+    };
 
     public LocalPlayback(Context context, MusicProvider musicProvider) {
         Context applicationContext = context.getApplicationContext();
@@ -197,10 +203,7 @@ public final class LocalPlayback implements Playback {
 
         if (mediaHasChanged || mExoPlayer == null) {
             releaseResources(false); // release everything except the player
-            MediaMetadataCompat track =
-                    mMusicProvider.getMusic(
-                            MediaIDHelper.extractMusicIDFromMediaID(
-                                    item.getDescription().getMediaId()));
+            MediaMetadataCompat track = mMusicProvider.getMusic(MediaIDHelper.extractMusicIDFromMediaID(mediaId));
 
             String source = track.getString(MusicProviderSource.CUSTOM_METADATA_TRACK_SOURCE);
             if (source != null) {
@@ -236,8 +239,7 @@ public final class LocalPlayback implements Playback {
             ExtractorMediaSource.Factory extractorMediaFactory =
                     new ExtractorMediaSource.Factory(dataSourceFactory);
             extractorMediaFactory.setExtractorsFactory(extractorsFactory);
-            MediaSource mediaSource =
-                    extractorMediaFactory.createMediaSource(Uri.parse(source));
+            MediaSource mediaSource = extractorMediaFactory.createMediaSource(Uri.parse(source));
 
             // Prepares media to play (happens on background thread) and triggers
             // {@code onPlayerStateChanged} callback when the stream is ready to play.
@@ -287,13 +289,21 @@ public final class LocalPlayback implements Playback {
         return mCurrentMediaId;
     }
 
+    /**
+     * 尝试获取音频焦点
+     * {@link AudioManager#requestAudioFocus(AudioManager.OnAudioFocusChangeListener l, int streamType, int durationHint)}
+     * OnAudioFocusChangeListener l：音频焦点状态改变监听器
+     * int streamType：请求焦点的音频类型
+     * int durationHint：请求焦点音频持续性的指示
+     *      {@link AudioManager#AUDIOFOCUS_GAIN}：指示申请得到的音频焦点不知道会持续多久，一般是长期占有
+     *      {@link AudioManager#AUDIOFOCUS_GAIN_TRANSIENT}：指示要申请的音频焦点是暂时性的，很快就会释放
+     *      {@link AudioManager#AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK}：指示要申请的音频焦点是暂时性的，并且当前正在使用焦点的音频可以继续播放，
+     *                                                               只是要“duck”一下（降低音量）
+     */
     private void tryToGetAudioFocus() {
         LogHelper.d(TAG, "tryToGetAudioFocus");
-        int result =
-                mAudioManager.requestAudioFocus(
-                        mOnAudioFocusChangeListener,
-                        AudioManager.STREAM_MUSIC,
-                        AudioManager.AUDIOFOCUS_GAIN);
+        int result = mAudioManager.requestAudioFocus(mOnAudioFocusChangeListener,
+                AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN);
         if (result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
             mCurrentAudioFocusState = AUDIO_FOCUSED;
         } else {
@@ -301,20 +311,19 @@ public final class LocalPlayback implements Playback {
         }
     }
 
+    /**
+     * 释放音频焦点
+     */
     private void giveUpAudioFocus() {
         LogHelper.d(TAG, "giveUpAudioFocus");
-        if (mAudioManager.abandonAudioFocus(mOnAudioFocusChangeListener)
-                == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
+        if (mAudioManager.abandonAudioFocus(mOnAudioFocusChangeListener) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
             mCurrentAudioFocusState = AUDIO_NO_FOCUS_NO_DUCK;
         }
     }
 
     /**
-     * Reconfigures the player according to audio focus settings and starts/restarts it. This method
-     * starts/restarts the ExoPlayer instance respecting the current audio focus state. So if we
-     * have focus, it will play normally; if we don't have focus, it will either leave the player
-     * paused or set it to a low volume, depending on what is permitted by the current focus
-     * settings.
+     * 根据音频焦点的设置重新配置播放器 以及 启动/重新启动 播放器。调用这个方法 启动/重新启动 播放器实例取决于当前音频焦点的状态。
+     * 因此如果我们持有音频焦点，则正常播放音频；如果我们失去音频焦点，播放器将暂停播放或者设置为低音量，这取决于当前焦点设置允许哪种设置
      */
     private void configurePlayerState() {
         LogHelper.d(TAG, "configurePlayerState. mCurrentAudioFocusState=", mCurrentAudioFocusState);
@@ -333,12 +342,17 @@ public final class LocalPlayback implements Playback {
 
             // If we were playing when we lost focus, we need to resume playing.
             if (mPlayOnFocusGain) {
+                // 播放过程中因失去音频焦点而暂停播放，短时间内需要恢复播放时会进入这里
                 mExoPlayer.setPlayWhenReady(true);
                 mPlayOnFocusGain = false;
             }
         }
     }
 
+    /**
+     * 调用{@link AudioManager#requestAudioFocus(AudioManager.OnAudioFocusChangeListener, int, int)} 请求音频焦点之后
+     * 负责监听音频焦点状态的Listener
+     */
     private final AudioManager.OnAudioFocusChangeListener mOnAudioFocusChangeListener =
             new AudioManager.OnAudioFocusChangeListener() {
                 @Override
@@ -353,8 +367,7 @@ public final class LocalPlayback implements Playback {
                             mCurrentAudioFocusState = AUDIO_NO_FOCUS_CAN_DUCK;
                             break;
                         case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT:
-                            // Lost audio focus, but will gain it back (shortly), so note whether
-                            // playback should resume
+                            // Lost audio focus, but will gain it back (shortly), so note whether playback should resume
                             mCurrentAudioFocusState = AUDIO_NO_FOCUS_NO_DUCK;
                             mPlayOnFocusGain = mExoPlayer != null && mExoPlayer.getPlayWhenReady();
                             break;
@@ -394,6 +407,9 @@ public final class LocalPlayback implements Playback {
         }
     }
 
+    /**
+     * 注册耳机插拔、蓝牙耳机断连的广播接收者
+     */
     private void registerAudioNoisyReceiver() {
         if (!mAudioNoisyReceiverRegistered) {
             mContext.registerReceiver(mAudioNoisyReceiver, mAudioNoisyIntentFilter);
@@ -401,6 +417,10 @@ public final class LocalPlayback implements Playback {
         }
     }
 
+    /**
+     * 注销耳机插拔、蓝牙耳机断连的广播接收者
+     * 为了避免内存泄露，在暂停或停止播放时完成注销
+     */
     private void unregisterAudioNoisyReceiver() {
         if (mAudioNoisyReceiverRegistered) {
             mContext.unregisterReceiver(mAudioNoisyReceiver);

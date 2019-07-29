@@ -43,7 +43,7 @@ import static com.example.android.uamp.utils.MediaIDHelper.createMediaID;
 
 /**
  * Simple data provider for music tracks. The actual metadata source is delegated to a
- * MusicProviderSource defined by a constructor argument of this class.
+ * {@link MusicProviderSource} defined by a constructor argument of this class.
  */
 public class MusicProvider {
 
@@ -52,9 +52,12 @@ public class MusicProvider {
     private MusicProviderSource mSource;
 
     // Categorized caches for music track data:
+    /** 按音乐类型存放音乐的容器 */
     private ConcurrentMap<String, List<MediaMetadataCompat>> mMusicListByGenre;
+    /** 按音乐id存放音乐的容器 */
     private final ConcurrentMap<String, MutableMediaMetadata> mMusicListById;
 
+    /** 存放用户"喜欢"音乐的容器，value为音乐id */
     private final Set<String> mFavoriteTracks;
 
     enum State {
@@ -63,13 +66,20 @@ public class MusicProvider {
 
     private volatile State mCurrentState = State.NON_INITIALIZED;
 
+    /**
+     * 获取音乐数据回调
+     */
     public interface Callback {
         void onMusicCatalogReady(boolean success);
     }
 
+    /**
+     * 实际调用的构造方法，即 {@link #mSource} 为 {@link RemoteJSONSource}
+     */
     public MusicProvider() {
         this(new RemoteJSONSource());
     }
+
     public MusicProvider(MusicProviderSource source) {
         mSource = source;
         mMusicListByGenre = new ConcurrentHashMap<>();
@@ -100,7 +110,7 @@ public class MusicProvider {
         for (MutableMediaMetadata mutableMetadata: mMusicListById.values()) {
             shuffled.add(mutableMetadata.metadata);
         }
-        Collections.shuffle(shuffled);
+        Collections.shuffle(shuffled);  // 打乱列表的顺序，以支持乱序播放
         return shuffled;
     }
 
@@ -158,8 +168,7 @@ public class MusicProvider {
         ArrayList<MediaMetadataCompat> result = new ArrayList<>();
         query = query.toLowerCase(Locale.US);
         for (MutableMediaMetadata track : mMusicListById.values()) {
-            if (track.metadata.getString(metadataField).toLowerCase(Locale.US)
-                .contains(query)) {
+            if (track.metadata.getString(metadataField).toLowerCase(Locale.US).contains(query)) {
                 result.add(track.metadata);
             }
         }
@@ -200,6 +209,12 @@ public class MusicProvider {
         mutableMetadata.metadata = metadata;
     }
 
+    /**
+     * 添加/取消 "喜欢"
+     *
+     * @param musicId
+     * @param favorite
+     */
     public void setFavorite(String musicId, boolean favorite) {
         if (favorite) {
             mFavoriteTracks.add(musicId);
@@ -212,6 +227,12 @@ public class MusicProvider {
         return mCurrentState == State.INITIALIZED;
     }
 
+    /**
+     * 判断该音乐是否在"喜欢"列表中
+     *
+     * @param musicId
+     * @return
+     */
     public boolean isFavorite(String musicId) {
         return mFavoriteTracks.contains(musicId);
     }
@@ -247,6 +268,9 @@ public class MusicProvider {
         }.execute();
     }
 
+    /**
+     * 将 {@link #mMusicListById} 中的数据重新按音乐类型进行划分，并存至 {@link #mMusicListByGenre}，使客户端可以按音频类型选择播放队列
+     */
     private synchronized void buildListsByGenre() {
         ConcurrentMap<String, List<MediaMetadataCompat>> newMusicListByGenre = new ConcurrentHashMap<>();
 
@@ -262,12 +286,15 @@ public class MusicProvider {
         mMusicListByGenre = newMusicListByGenre;
     }
 
+    /**
+     * 获取音频数据
+     */
     private synchronized void retrieveMedia() {
         try {
             if (mCurrentState == State.NON_INITIALIZED) {
                 mCurrentState = State.INITIALIZING;
 
-                Iterator<MediaMetadataCompat> tracks = mSource.iterator();
+                Iterator<MediaMetadataCompat> tracks = mSource.iterator();  // RemoteJSONSource 的 迭代器
                 while (tracks.hasNext()) {
                     MediaMetadataCompat item = tracks.next();
                     String musicId = item.getString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID);

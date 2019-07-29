@@ -32,6 +32,18 @@ import com.example.android.uamp.utils.WearHelper;
 
 /**
  * Manage the interactions among the container service, the queue manager and the actual playback.
+ *
+ * 原本音频播放器是运行在 MediaBrowserService 中的，但是为了将服务层与控制层进行解耦，UAMP将播放器的控制逻辑放到了 {@link Playback} 实例中
+ * 然后让该类作为中介通过接口回调的方式分别与 MediaBrowserService（通过 {@link PlaybackServiceCallback}）、
+ * MediaSession（通过 {@link MediaSessionCallback}）以及 Playback（通过 {@link Playback.Callback}）关联，从而管理它们之间的交互。
+ *
+ * 即UAMP的播放控制流程可以分为 指令下发 和 状态回传 两个过程：
+ * 1）指令下发可以理解为从客户端UI层到Playback层每一层通过调用下一层的实例的方法将控制指令一直传达到播放器，从而达到UI组件控制播放器播放音乐的功能
+ *    以点击播放按钮为例，播放指令下发过程中调用的方法顺序大致为：OnClickListener.onClick() →
+ *    MediaController.getTransportControls().play() → MediaSession.Callback.onPlay() → Playback.play()
+ *
+ * 2）状态回传则是指下层通过上层实现的回调将播放状态一路回传到UI层中，用以更新UI组件的显示
+ *
  */
 public class PlaybackManager implements Playback.Callback {
 
@@ -42,8 +54,11 @@ public class PlaybackManager implements Playback.Callback {
     private MusicProvider mMusicProvider;
     private QueueManager mQueueManager;
     private Resources mResources;
+    /** Playback实例，默认为 {@link LocalPlayback} */
     private Playback mPlayback;
+    /** 供 {@link com.example.android.uamp.MusicService } 实现的回调接口 */
     private PlaybackServiceCallback mServiceCallback;
+    /** 受控端回调实现类 */
     private MediaSessionCallback mMediaSessionCallback;
 
     public PlaybackManager(PlaybackServiceCallback serviceCallback, Resources resources,
@@ -55,7 +70,7 @@ public class PlaybackManager implements Playback.Callback {
         mQueueManager = queueManager;
         mMediaSessionCallback = new MediaSessionCallback();
         mPlayback = playback;
-        mPlayback.setCallback(this);
+        mPlayback.setCallback(this);    // 拿到Playback的实例后，将自身作为回调传入，完成与Playback双向关联
     }
 
     public Playback getPlayback() {
@@ -262,7 +277,11 @@ public class PlaybackManager implements Playback.Callback {
     }
 
 
+    /**
+     * 受控端回调实现类
+     */
     private class MediaSessionCallback extends MediaSessionCompat.Callback {
+
         @Override
         public void onPlay() {
             LogHelper.d(TAG, "play");
@@ -383,7 +402,11 @@ public class PlaybackManager implements Playback.Callback {
     }
 
 
+    /**
+     * 供 {@link com.example.android.uamp.MusicService } 实现的回调接口
+     */
     public interface PlaybackServiceCallback {
+
         void onPlaybackStart();
 
         void onNotificationRequired();

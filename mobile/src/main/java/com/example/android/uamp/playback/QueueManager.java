@@ -39,6 +39,9 @@ import java.util.List;
  * Simple data provider for queues. Keeps track of a current queue and a current index in the
  * queue. Also provides methods to set the current queue based on common queries, relying on a
  * given MusicProvider to provide the actual media metadata.
+ *
+ * UAMP中数据层和播放控制层是分离开来的，正如使用{@link PlaybackManager} 作为中介管理播放器
+ * 使用该类作为中介连通数据层、播放控制层和Service层，并提供了队列形式的存储容器（这个队列是线程安全的）以及可以管理音乐层级关系的方法
  */
 public class QueueManager {
     private static final String TAG = LogHelper.makeLogTag(QueueManager.class);
@@ -51,6 +54,13 @@ public class QueueManager {
     private List<MediaSessionCompat.QueueItem> mPlayingQueue;
     private int mCurrentIndex;
 
+    /**
+     * 构造方法
+     *
+     * @param musicProvider 数据提供者
+     * @param resources     系统资源
+     * @param listener      播放数据更新监听
+     */
     public QueueManager(@NonNull MusicProvider musicProvider,
                         @NonNull Resources resources,
                         @NonNull MetadataUpdateListener listener) {
@@ -217,10 +227,36 @@ public class QueueManager {
         }
     }
 
+    /**
+     * 数据层更新接口，在{@link com.example.android.uamp.MusicService} 中被实现
+     */
     public interface MetadataUpdateListener {
+
+        /**
+         * 媒体数据变更时调用
+         *
+         * @param metadata
+         */
         void onMetadataChanged(MediaMetadataCompat metadata);
+
+        /**
+         * 媒体数据检索失败时调用
+         */
         void onMetadataRetrieveError();
+
+        /**
+         * 当前播放索引变更时调用
+         *
+         * @param queueIndex
+         */
         void onCurrentQueueIndexUpdated(int queueIndex);
+
+        /**
+         * 当前播放队列变更时调用
+         *
+         * @param title
+         * @param newQueue
+         */
         void onQueueUpdated(String title, List<MediaSessionCompat.QueueItem> newQueue);
     }
 }

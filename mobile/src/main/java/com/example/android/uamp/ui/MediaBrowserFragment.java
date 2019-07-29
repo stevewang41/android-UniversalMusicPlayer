@@ -107,32 +107,36 @@ public class MediaBrowserFragment extends Fragment {
         }
     };
 
-    private final MediaBrowserCompat.SubscriptionCallback mSubscriptionCallback =
-        new MediaBrowserCompat.SubscriptionCallback() {
-            @Override
-            public void onChildrenLoaded(@NonNull String parentId,
-                                         @NonNull List<MediaBrowserCompat.MediaItem> children) {
-                try {
-                    LogHelper.d(TAG, "fragment onChildrenLoaded, parentId=" + parentId +
-                        "  count=" + children.size());
-                    checkForUserVisibleErrors(children.isEmpty());
-                    mBrowserAdapter.clear();
-                    for (MediaBrowserCompat.MediaItem item : children) {
-                        mBrowserAdapter.add(item);
-                    }
-                    mBrowserAdapter.notifyDataSetChanged();
-                } catch (Throwable t) {
-                    LogHelper.e(TAG, "Error on childrenloaded", t);
-                }
-            }
+    /**
+     * 向 MediaBrowserService 发起数据订阅请求的回调接口
+     */
+    private final MediaBrowserCompat.SubscriptionCallback mSubscriptionCallback = new MediaBrowserCompat
+            .SubscriptionCallback() {
 
-            @Override
-            public void onError(@NonNull String id) {
-                LogHelper.e(TAG, "browse fragment subscription onError, id=" + id);
-                Toast.makeText(getActivity(), R.string.error_loading_media, Toast.LENGTH_LONG).show();
-                checkForUserVisibleErrors(true);
+        @Override
+        public void onChildrenLoaded(@NonNull String parentId,
+                                     @NonNull List<MediaBrowserCompat.MediaItem> children) {
+            try {
+                LogHelper.d(TAG, "fragment onChildrenLoaded, parentId=" + parentId +
+                        "  count=" + children.size());
+                checkForUserVisibleErrors(children.isEmpty());
+                mBrowserAdapter.clear();
+                for (MediaBrowserCompat.MediaItem item : children) {
+                    mBrowserAdapter.add(item);
+                }
+                mBrowserAdapter.notifyDataSetChanged(); // 获取到音频数据后刷新列表Adapter更新展示内容
+            } catch (Throwable t) {
+                LogHelper.e(TAG, "Error on childrenloaded", t);
             }
-        };
+        }
+
+        @Override
+        public void onError(@NonNull String id) {
+            LogHelper.e(TAG, "browse fragment subscription onError, id=" + id);
+            Toast.makeText(getActivity(), R.string.error_loading_media, Toast.LENGTH_LONG).show();
+            checkForUserVisibleErrors(true);
+        }
+    };
 
     @Override
     public void onAttach(Activity activity) {
@@ -177,7 +181,7 @@ public class MediaBrowserFragment extends Fragment {
         LogHelper.d(TAG, "fragment.onStart, mediaId=", mMediaId,
                 "  onConnected=" + mediaBrowser.isConnected());
 
-        if (mediaBrowser.isConnected()) {
+        if (mediaBrowser.isConnected()) {   // 如果 MediaBrowser 已经与 MediaBrowserService 完成连接，则可以发起订阅
             onConnected();
         }
 

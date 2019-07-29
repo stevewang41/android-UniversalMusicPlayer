@@ -77,6 +77,14 @@ public class RemoteJSONSource implements MusicProviderSource {
         }
     }
 
+    /**
+     * 解析JSON格式的数据，构建MediaMetadata对象
+     *
+     * @param json
+     * @param basePath
+     * @return
+     * @throws JSONException
+     */
     private MediaMetadataCompat buildFromJSON(JSONObject json, String basePath) throws JSONException {
         String title = json.getString(JSON_TITLE);
         String album = json.getString(JSON_ALBUM);
@@ -121,8 +129,7 @@ public class RemoteJSONSource implements MusicProviderSource {
     }
 
     /**
-     * Download a JSON file from a server, parse the content and return the JSON
-     * object.
+     * 从服务端下载JSON文件，解析并返回JSON object
      *
      * @return result JSONObject containing the parsed representation.
      */
