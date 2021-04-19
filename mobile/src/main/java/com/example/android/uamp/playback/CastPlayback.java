@@ -60,9 +60,9 @@ public class CastPlayback implements Playback {
     private long mCurrentPosition;
     private String mCurrentMediaId;
 
-    public CastPlayback(MusicProvider musicProvider, Context context) {
-        mMusicProvider = musicProvider;
+    public CastPlayback(Context context, MusicProvider musicProvider) {
         mAppContext = context.getApplicationContext();
+        mMusicProvider = musicProvider;
 
         CastSession castSession = CastContext.getSharedInstance(mAppContext).getSessionManager()
                 .getCurrentCastSession();
@@ -80,7 +80,7 @@ public class CastPlayback implements Playback {
         mRemoteMediaClient.removeListener(mRemoteMediaClientListener);
         mPlaybackState = PlaybackStateCompat.STATE_STOPPED;
         if (notifyListeners && mCallback != null) {
-            mCallback.onPlaybackStatusChanged(mPlaybackState);
+            mCallback.onPlaybackStateChanged(mPlaybackState);
         }
     }
 
@@ -108,7 +108,7 @@ public class CastPlayback implements Playback {
             loadMedia(item.getDescription().getMediaId(), true);
             mPlaybackState = PlaybackStateCompat.STATE_BUFFERING;
             if (mCallback != null) {
-                mCallback.onPlaybackStatusChanged(mPlaybackState);
+                mCallback.onPlaybackStateChanged(mPlaybackState);
             }
         } catch (JSONException e) {
             LogHelper.e(TAG, "Exception loading media ", e, null);
@@ -174,8 +174,7 @@ public class CastPlayback implements Playback {
 
     @Override
     public boolean isConnected() {
-        CastSession castSession = CastContext.getSharedInstance(mAppContext).getSessionManager()
-                .getCurrentCastSession();
+        CastSession castSession = CastContext.getSharedInstance(mAppContext).getSessionManager().getCurrentCastSession();
         return (castSession != null && castSession.isConnected());
     }
 
@@ -291,21 +290,21 @@ public class CastPlayback implements Playback {
             case MediaStatus.PLAYER_STATE_BUFFERING:
                 mPlaybackState = PlaybackStateCompat.STATE_BUFFERING;
                 if (mCallback != null) {
-                    mCallback.onPlaybackStatusChanged(mPlaybackState);
+                    mCallback.onPlaybackStateChanged(mPlaybackState);
                 }
                 break;
             case MediaStatus.PLAYER_STATE_PLAYING:
                 mPlaybackState = PlaybackStateCompat.STATE_PLAYING;
                 setMetadataFromRemote();
                 if (mCallback != null) {
-                    mCallback.onPlaybackStatusChanged(mPlaybackState);
+                    mCallback.onPlaybackStateChanged(mPlaybackState);
                 }
                 break;
             case MediaStatus.PLAYER_STATE_PAUSED:
                 mPlaybackState = PlaybackStateCompat.STATE_PAUSED;
                 setMetadataFromRemote();
                 if (mCallback != null) {
-                    mCallback.onPlaybackStatusChanged(mPlaybackState);
+                    mCallback.onPlaybackStateChanged(mPlaybackState);
                 }
                 break;
             default: // case unknown

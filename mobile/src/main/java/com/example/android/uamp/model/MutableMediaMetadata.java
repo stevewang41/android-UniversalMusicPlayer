@@ -20,13 +20,20 @@ import android.support.v4.media.MediaMetadataCompat;
 import android.text.TextUtils;
 
 /**
+ * {@link MediaMetadataCompat} 的包装类，允许修改内部持有的 MediaMetadataCompat，不需要重新创建
+ *
+ *
  * Holder class that encapsulates a MediaMetadata and allows the actual metadata to be modified
  * without requiring to rebuild the collections the metadata is in.
  */
 public class MutableMediaMetadata {
 
-    public MediaMetadataCompat metadata;
+    /** 唯一id，即musicId */
     public final String trackId;
+    /** 媒体数据， */
+    public MediaMetadataCompat metadata;
+
+
 
     public MutableMediaMetadata(String trackId, MediaMetadataCompat metadata) {
         this.metadata = metadata;

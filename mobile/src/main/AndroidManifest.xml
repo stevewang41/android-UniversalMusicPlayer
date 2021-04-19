@@ -1,5 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!--
+<?xml version="1.0" encoding="utf-8"?><!--
   Copyright (C) 2014 The Android Open Source Project
 
   Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +15,7 @@
   -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
-    package="com.example.android.uamp" >
+    package="com.example.android.uamp">
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
@@ -34,10 +33,10 @@
 
     <application
         android:allowBackup="true"
+        android:banner="@drawable/banner_tv"
         android:icon="@drawable/ic_launcher"
         android:label="@string/app_name"
-        android:theme="@style/UAmpAppTheme"
-        android:banner="@drawable/banner_tv">
+        android:theme="@style/UAmpAppTheme">
 
         <meta-data
             android:name="com.google.android.gms.car.application"
@@ -72,14 +71,13 @@
         the current environment -->
         <activity
             android:name=".ui.NowPlayingActivity"
-            android:icon="@drawable/ic_launcher">
-        </activity>
+            android:icon="@drawable/ic_launcher"></activity>
 
         <!-- Main activity for Android TV user interface -->
         <activity
             android:name=".ui.tv.TvBrowseActivity"
             android:label="@string/app_name"
-            android:theme="@style/Theme.UAmp.TVLeanback" >
+            android:theme="@style/Theme.UAmp.TVLeanback">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
@@ -88,14 +86,14 @@
 
         <activity
             android:name=".ui.tv.TvVerticalGridActivity"
-            android:theme="@style/Theme.UAmp.TVLeanback"
-            android:parentActivityName=".ui.tv.TvBrowseActivity" />
+            android:parentActivityName=".ui.tv.TvBrowseActivity"
+            android:theme="@style/Theme.UAmp.TVLeanback" />
 
         <!-- Android TV UI when playing a song -->
         <activity
             android:name=".ui.tv.TvPlaybackActivity"
-            android:theme="@style/Theme.UAmp.TVLeanback"
-            android:parentActivityName=".ui.tv.TvBrowseActivity" />
+            android:parentActivityName=".ui.tv.TvBrowseActivity"
+            android:theme="@style/Theme.UAmp.TVLeanback" />
 
         <!--
              (OPTIONAL) use this meta data to indicate which icon should be
@@ -144,23 +142,23 @@
             android:name="com.google.android.gms.cast.framework.OPTIONS_PROVIDER_CLASS_NAME"
             android:value="com.example.android.uamp.CastOptionsProvider" />
 
-        <!-- A full screen activity showing controls and a seek bar for
-             the current playing music -->
+        <!-- A full screen activity showing controls and a seek bar for the current playing music -->
         <activity
             android:name=".ui.FullScreenPlayerActivity"
             android:label="@string/app_name"
             android:launchMode="singleTop"
             android:parentActivityName=".ui.MusicPlayerActivity">
+            <!-- parentActivityName 这个属性使当前Activity顶bar上面多了一个返回按钮，点击返回至MusicPlayerActivity -->
             <meta-data
                 android:name="android.support.PARENT_ACTIVITY"
-                android:value=".ui.MusicPlayerActivity"/>
+                android:value=".ui.MusicPlayerActivity" />
         </activity>
 
         <!-- A receiver that will receive media buttons and send as
             intents to your MediaBrowserServiceCompat implementation.
             Required on pre-Lollipop. More information at
             http://developer.android.com/reference/android/support/v4/media/session/MediaButtonReceiver.html -->
-        <receiver android:name="android.support.v4.media.session.MediaButtonReceiver" >
+        <receiver android:name="android.support.v4.media.session.MediaButtonReceiver">
             <intent-filter>
                 <action android:name="android.intent.action.MEDIA_BUTTON" />
             </intent-filter>

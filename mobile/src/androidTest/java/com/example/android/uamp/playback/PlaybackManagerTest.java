@@ -83,7 +83,7 @@ public class PlaybackManagerTest {
     public void testPlay() throws Exception {
         String mediaId = MediaIDHelper.MEDIA_ID_ROOT;
         while (MediaIDHelper.isBrowseable(mediaId)) {
-            mediaId = musicProvider.getChildren(mediaId, resources).get(0).getMediaId();
+            mediaId = musicProvider.getChildren(resources, mediaId).get(0).getMediaId();
         }
 
         // Using a CountDownLatch, we will check if all callbacks are called correctly when
@@ -91,7 +91,7 @@ public class PlaybackManagerTest {
         final CountDownLatch latch = new CountDownLatch(5);
         final String expectedMediaId = mediaId;
 
-        QueueManager queueManager = new QueueManager(musicProvider, resources, new SimpleMetadataUpdateListener(){
+        QueueManager queueManager = new QueueManager(resources, musicProvider, new SimpleMetadataUpdateListener(){
             @Override
             public void onMetadataChanged(MediaMetadataCompat metadata) {
                 // Latch countdown 1: QueueManager will change appropriately
@@ -133,8 +133,8 @@ public class PlaybackManagerTest {
             }
         };
 
-        PlaybackManager playbackManager = new PlaybackManager(serviceCallback, resources,
-                musicProvider, queueManager, playback);
+        PlaybackManager playbackManager = new PlaybackManager(resources, musicProvider, serviceCallback,
+                queueManager, playback);
         playbackManager.getMediaSessionCallback().onPlayFromMediaId(expectedMediaId, null);
 
         latch.await(5, TimeUnit.SECONDS);
@@ -152,7 +152,7 @@ public class PlaybackManagerTest {
         final String expectedMusicId = musicProvider.searchMusicBySongTitle("Music 3")
                 .iterator().next().getDescription().getMediaId();
 
-        QueueManager queueManager = new QueueManager(musicProvider, resources, new SimpleMetadataUpdateListener(){
+        QueueManager queueManager = new QueueManager(resources, musicProvider, new SimpleMetadataUpdateListener() {
             @Override
             public void onMetadataChanged(MediaMetadataCompat metadata) {
                 // Latch countdown 1: QueueManager will change appropriately
@@ -194,8 +194,8 @@ public class PlaybackManagerTest {
             }
         };
 
-        PlaybackManager playbackManager = new PlaybackManager(serviceCallback, resources,
-                musicProvider, queueManager, playback);
+        PlaybackManager playbackManager = new PlaybackManager(resources, musicProvider, serviceCallback,
+                queueManager, playback);
         playbackManager.getMediaSessionCallback().onPlayFromSearch("Music 3", null);
 
         latch.await(5, TimeUnit.SECONDS);

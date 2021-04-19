@@ -17,6 +17,15 @@ package com.example.android.uamp.ui;
 
 import android.support.v4.media.MediaBrowserCompat;
 
+/**
+ * MediaBrowser提供者，对外暴露MediaBrowser
+ */
 public interface MediaBrowserProvider {
+
+    /**
+     * 获取MediaBrowser
+     *
+     * @return MediaBrowser
+     */
     MediaBrowserCompat getMediaBrowser();
 }

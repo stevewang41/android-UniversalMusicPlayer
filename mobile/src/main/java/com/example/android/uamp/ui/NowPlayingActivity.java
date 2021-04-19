@@ -25,9 +25,11 @@ import com.example.android.uamp.ui.tv.TvPlaybackActivity;
 import com.example.android.uamp.utils.LogHelper;
 
 /**
+ * 后台播放音乐时用户点击正在播放卡片，会尝试调起这个Activity，它根据当前UI Mode决定启动哪个Activity
+ * <p>
  * The activity for the Now Playing Card PendingIntent.
  * https://developer.android.com/training/tv/playback/now-playing.html
- *
+ * <p>
  * This activity determines which activity to launch based on the current UI mode.
  */
 public class NowPlayingActivity extends Activity {

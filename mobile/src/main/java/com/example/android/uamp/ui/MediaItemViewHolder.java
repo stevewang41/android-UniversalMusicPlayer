@@ -35,35 +35,51 @@ import android.widget.TextView;
 import com.example.android.uamp.R;
 import com.example.android.uamp.utils.MediaIDHelper;
 
+/**
+ * 媒体数据列表项ViewHolder
+ */
 public class MediaItemViewHolder {
 
+    /** 无效状态，作为默认值 */
     public static final int STATE_INVALID = -1;
+    /** 发生错误不可播放的状态 */
     public static final int STATE_NONE = 0;
+    /** 可播放但未播放的状态， */
     public static final int STATE_PLAYABLE = 1;
+    /** 暂停状态 */
     public static final int STATE_PAUSED = 2;
+    /** 正在播放状态 */
     public static final int STATE_PLAYING = 3;
 
     private static ColorStateList sColorStatePlaying;
     private static ColorStateList sColorStateNotPlaying;
 
+    /** 均衡器图标 */
     private ImageView mImageView;
+    /** item标题 */
     private TextView mTitleView;
+    /** item描述 */
     private TextView mDescriptionView;
 
-    // Returns a view for use in media item list.
-    static View setupListView(Activity activity, View convertView, ViewGroup parent,
-                              MediaBrowserCompat.MediaItem item) {
+    /**
+     * 组建ListView
+     *
+     * @param activity    Activity
+     * @param convertView The old view to reuse, if possible.
+     * @param parent      The parent that this view will eventually be attached to
+     * @param item        媒体数据
+     * @return a view for use in media item list.
+     */
+    static View setupListView(Activity activity, View convertView, ViewGroup parent, MediaBrowserCompat.MediaItem item) {
         if (sColorStateNotPlaying == null || sColorStatePlaying == null) {
             initializeColorStateLists(activity);
         }
 
         MediaItemViewHolder holder;
-
         Integer cachedState = STATE_INVALID;
 
         if (convertView == null) {
-            convertView = LayoutInflater.from(activity)
-                    .inflate(R.layout.media_list_item, parent, false);
+            convertView = LayoutInflater.from(activity).inflate(R.layout.media_list_item, parent, false);
             holder = new MediaItemViewHolder();
             holder.mImageView = (ImageView) convertView.findViewById(R.id.play_eq);
             holder.mTitleView = (TextView) convertView.findViewById(R.id.title);
@@ -78,8 +94,7 @@ public class MediaItemViewHolder {
         holder.mTitleView.setText(description.getTitle());
         holder.mDescriptionView.setText(description.getSubtitle());
 
-        // If the state of convertView is different, we need to adapt the view to the
-        // new state.
+        // If the state of convertView is different, we need to adapt the view to the new state.
         int state = getMediaItemState(activity, item);
         if (cachedState == null || cachedState != state) {
             Drawable drawable = getDrawableByState(activity, state);
@@ -97,31 +112,37 @@ public class MediaItemViewHolder {
 
     private static void initializeColorStateLists(Context ctx) {
         sColorStateNotPlaying = ColorStateList.valueOf(ctx.getResources().getColor(
-            R.color.media_item_icon_not_playing));
+                R.color.media_item_icon_not_playing));
         sColorStatePlaying = ColorStateList.valueOf(ctx.getResources().getColor(
-            R.color.media_item_icon_playing));
+                R.color.media_item_icon_playing));
     }
 
+    /**
+     * 根据播放状态获取Drawable
+     *
+     * @param context 上下文
+     * @param state   播放状态
+     * @return
+     */
     public static Drawable getDrawableByState(Context context, int state) {
         if (sColorStateNotPlaying == null || sColorStatePlaying == null) {
             initializeColorStateLists(context);
         }
-
         switch (state) {
             case STATE_PLAYABLE:
-                Drawable pauseDrawable = ContextCompat.getDrawable(context,
-                        R.drawable.ic_play_arrow_black_36dp);
+                Drawable pauseDrawable = ContextCompat.getDrawable(context, R.drawable.ic_play_arrow_black_36dp);
                 DrawableCompat.setTintList(pauseDrawable, sColorStateNotPlaying);
                 return pauseDrawable;
             case STATE_PLAYING:
+                // 均衡器帧动画
                 AnimationDrawable animation = (AnimationDrawable)
                         ContextCompat.getDrawable(context, R.drawable.ic_equalizer_white_36dp);
                 DrawableCompat.setTintList(animation, sColorStatePlaying);
                 animation.start();
                 return animation;
             case STATE_PAUSED:
-                Drawable playDrawable = ContextCompat.getDrawable(context,
-                        R.drawable.ic_equalizer1_white_36dp);
+                // 均衡器帧动画第一帧图片
+                Drawable playDrawable = ContextCompat.getDrawable(context, R.drawable.ic_equalizer1_white_36dp);
                 DrawableCompat.setTintList(playDrawable, sColorStatePlaying);
                 return playDrawable;
             default:
@@ -129,6 +150,13 @@ public class MediaItemViewHolder {
         }
     }
 
+    /**
+     * 获取某个媒体项播放状态
+     *
+     * @param context   上下文
+     * @param mediaItem 媒体项
+     * @return
+     */
     public static int getMediaItemState(Activity context, MediaBrowserCompat.MediaItem mediaItem) {
         int state = STATE_NONE;
         // Set state to playable first, then override to playing or paused state if needed
@@ -138,18 +166,22 @@ public class MediaItemViewHolder {
                 state = getStateFromController(context);
             }
         }
-
         return state;
     }
 
+    /**
+     * 从 MediaController 中获取播放状态，即完成 PlaybackState 到 ViewHolderState 的映射
+     *
+     * @param context 上下文
+     * @return
+     */
     public static int getStateFromController(Activity context) {
         MediaControllerCompat controller = MediaControllerCompat.getMediaController(context);
-        PlaybackStateCompat pbState = controller.getPlaybackState();
-        if (pbState == null ||
-                pbState.getState() == PlaybackStateCompat.STATE_ERROR) {
+        PlaybackStateCompat playbackState = controller.getPlaybackState();
+        if (playbackState == null || playbackState.getState() == PlaybackStateCompat.STATE_ERROR) {
             return MediaItemViewHolder.STATE_NONE;
-        } else if (pbState.getState() == PlaybackStateCompat.STATE_PLAYING) {
-            return  MediaItemViewHolder.STATE_PLAYING;
+        } else if (playbackState.getState() == PlaybackStateCompat.STATE_PLAYING) {
+            return MediaItemViewHolder.STATE_PLAYING;
         } else {
             return MediaItemViewHolder.STATE_PAUSED;
         }

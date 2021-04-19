@@ -23,10 +23,17 @@ import static android.support.v4.media.session.MediaSessionCompat.QueueItem;
  * Interface representing either Local or Remote Playback. The {@link MusicService} works
  * directly with an instance of the Playback object to make the various calls such as
  * play, pause etc.
- *
+ * <p>
  * 播放控制层接口
  */
 public interface Playback {
+
+    /**
+     * 设置回调
+     *
+     * @param callback
+     */
+    void setCallback(Callback callback);
 
     /**
      * Start/setup the playback.
@@ -34,8 +41,15 @@ public interface Playback {
      */
     void start();
 
+    void play(QueueItem item);
+
+    void seekTo(long position);
+
+    void pause();
+
     /**
      * Stop the playback. All resources can be de-allocated by implementations here.
+     *
      * @param notifyListeners if true and a callback has been set by setCallback,
      *                        callback.onPlaybackStatusChanged will be called after changing
      *                        the state.
@@ -64,6 +78,8 @@ public interface Playback {
     boolean isPlaying();
 
     /**
+     * Returns the playback position in the current window, in milliseconds.
+     *
      * @return pos if currently playing an item
      */
     long getCurrentStreamPosition();
@@ -73,20 +89,31 @@ public interface Playback {
      */
     void updateLastKnownStreamPosition();
 
-    void play(QueueItem item);
-
-    void pause();
-
-    void seekTo(long position);
-
+    /**
+     * 设置当前播放的媒体数据id
+     *
+     * @param mediaId 媒体数据id
+     */
     void setCurrentMediaId(String mediaId);
 
     String getCurrentMediaId();
 
     /**
-     * 供 {@link PlaybackManager} 实现的回调接口
+     * 与 {@link PlaybackManager } 交互接口
      */
     interface Callback {
+
+        /**
+         * @param mediaId being currently played
+         */
+        void setCurrentMediaId(String mediaId);
+
+        /**
+         * on Playback status changed
+         * Implementations can use this callback to update
+         * playback state on the media sessions.
+         */
+        void onPlaybackStateChanged(int state);
 
         /**
          * On current music completed.
@@ -94,22 +121,8 @@ public interface Playback {
         void onCompletion();
 
         /**
-         * on Playback status changed
-         * Implementations can use this callback to update
-         * playback state on the media sessions.
-         */
-        void onPlaybackStatusChanged(int state);
-
-        /**
          * @param error to be added to the PlaybackState
          */
         void onError(String error);
-
-        /**
-         * @param mediaId being currently played
-         */
-        void setCurrentMediaId(String mediaId);
     }
-
-    void setCallback(Callback callback);
 }

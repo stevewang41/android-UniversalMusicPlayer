@@ -1,18 +1,18 @@
 /*
-* Copyright (C) 2014 The Android Open Source Project
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*      http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*/
+ * Copyright (C) 2014 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 package com.example.android.uamp.playback;
 
@@ -32,53 +32,60 @@ import com.example.android.uamp.utils.WearHelper;
 
 /**
  * Manage the interactions among the container service, the queue manager and the actual playback.
- *
- * 原本音频播放器是运行在 MediaBrowserService 中的，但是为了将服务层与控制层进行解耦，UAMP将播放器的控制逻辑放到了 {@link Playback} 实例中
+ * <p>
+ * 原本音频播放器是运行在 MediaBrowserService 中的，但是为了将服务层与播放控制层进行解耦，UAMP将播放器的控制逻辑放到了 {@link Playback} 实例中
  * 然后让该类作为中介通过接口回调的方式分别与 MediaBrowserService（通过 {@link PlaybackServiceCallback}）、
  * MediaSession（通过 {@link MediaSessionCallback}）以及 Playback（通过 {@link Playback.Callback}）关联，从而管理它们之间的交互。
- *
+ * <p>
  * 即UAMP的播放控制流程可以分为 指令下发 和 状态回传 两个过程：
  * 1）指令下发可以理解为从客户端UI层到Playback层每一层通过调用下一层的实例的方法将控制指令一直传达到播放器，从而达到UI组件控制播放器播放音乐的功能
- *    以点击播放按钮为例，播放指令下发过程中调用的方法顺序大致为：OnClickListener.onClick() →
- *    MediaController.getTransportControls().play() → MediaSession.Callback.onPlay() → Playback.play()
- *
+ * 以点击播放按钮为例，播放指令下发过程中调用的方法顺序大致为：OnClickListener.onClick() →
+ * MediaController.getTransportControls().play() → MediaSession.Callback.onPlay() → Playback.play()
+ * <p>
  * 2）状态回传则是指下层通过上层实现的回调将播放状态一路回传到UI层中，用以更新UI组件的显示
- *
+ * Playback.Callback.onPlaybackStateUpdated() → PlaybackServiceCallback.onPlaybackStateUpdated() →
+ * MediaSession.setPlaybackState(newState) → MediaController.Callback.onPlaybackStateChanged() → updateUI()
  */
 public class PlaybackManager implements Playback.Callback {
 
     private static final String TAG = LogHelper.makeLogTag(PlaybackManager.class);
-    // Action to thumbs up a media item
+    /** 自定义点赞Action，即喜欢 */
     private static final String CUSTOM_ACTION_THUMBS_UP = "com.example.android.uamp.THUMBS_UP";
-
-    private MusicProvider mMusicProvider;
-    private QueueManager mQueueManager;
-    private Resources mResources;
+    /** 用来获取应用资源 */
+    private final Resources mResources;
+    /** 歌曲数据提供者 */
+    private final MusicProvider mMusicProvider;
+    /** 与 MusicService 交互的接口 */
+    private final PlaybackServiceCallback mServiceCallback;
+    /** 播放队列管理器 */
+    private final QueueManager mQueueManager;
     /** Playback实例，默认为 {@link LocalPlayback} */
     private Playback mPlayback;
-    /** 供 {@link com.example.android.uamp.MusicService } 实现的回调接口 */
-    private PlaybackServiceCallback mServiceCallback;
-    /** 受控端回调实现类 */
-    private MediaSessionCallback mMediaSessionCallback;
+    /** 受控端回调 */
+    private final MediaSessionCallback mMediaSessionCallback;
 
-    public PlaybackManager(PlaybackServiceCallback serviceCallback, Resources resources,
-                           MusicProvider musicProvider, QueueManager queueManager,
+
+    /**
+     * 构造方法
+     *
+     * @param resources     应用资源
+     * @param musicProvider 数据提供者
+     * @param callback      回调接口
+     * @param queueManager  队列管理器
+     * @param playback      播放控制层接口，采用注入方式方便进行单元测试
+     */
+    public PlaybackManager(Resources resources,
+                           MusicProvider musicProvider,
+                           PlaybackServiceCallback callback,
+                           QueueManager queueManager,
                            Playback playback) {
-        mMusicProvider = musicProvider;
-        mServiceCallback = serviceCallback;
         mResources = resources;
+        mMusicProvider = musicProvider;
+        mServiceCallback = callback;
         mQueueManager = queueManager;
-        mMediaSessionCallback = new MediaSessionCallback();
         mPlayback = playback;
         mPlayback.setCallback(this);    // 拿到Playback的实例后，将自身作为回调传入，完成与Playback双向关联
-    }
-
-    public Playback getPlayback() {
-        return mPlayback;
-    }
-
-    public MediaSessionCompat.Callback getMediaSessionCallback() {
-        return mMediaSessionCallback;
+        mMediaSessionCallback = new MediaSessionCallback();
     }
 
     /**
@@ -132,9 +139,7 @@ public class PlaybackManager implements Playback.Callback {
         }
 
         //noinspection ResourceType
-        PlaybackStateCompat.Builder stateBuilder = new PlaybackStateCompat.Builder()
-                .setActions(getAvailableActions());
-
+        PlaybackStateCompat.Builder stateBuilder = new PlaybackStateCompat.Builder().setActions(getAvailableActions());
         setCustomAction(stateBuilder);
         int state = mPlayback.getState();
 
@@ -155,13 +160,35 @@ public class PlaybackManager implements Playback.Callback {
         }
 
         mServiceCallback.onPlaybackStateUpdated(stateBuilder.build());
-
-        if (state == PlaybackStateCompat.STATE_PLAYING ||
-                state == PlaybackStateCompat.STATE_PAUSED) {
+        if (state == PlaybackStateCompat.STATE_PLAYING || state == PlaybackStateCompat.STATE_PAUSED) {
             mServiceCallback.onNotificationRequired();
         }
     }
 
+    /**
+     * 获取当前可用的Action
+     *
+     * @return
+     */
+    private long getAvailableActions() {
+        long actions = PlaybackStateCompat.ACTION_PLAY_PAUSE
+                | PlaybackStateCompat.ACTION_PLAY_FROM_MEDIA_ID
+                | PlaybackStateCompat.ACTION_PLAY_FROM_SEARCH
+                | PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS
+                | PlaybackStateCompat.ACTION_SKIP_TO_NEXT;
+        if (mPlayback.isPlaying()) {
+            actions |= PlaybackStateCompat.ACTION_PAUSE;
+        } else {
+            actions |= PlaybackStateCompat.ACTION_PLAY;
+        }
+        return actions;
+    }
+
+    /**
+     * 设置自定义Action，这里只定义了一个 {@link #CUSTOM_ACTION_THUMBS_UP}
+     *
+     * @param stateBuilder
+     */
     private void setCustomAction(PlaybackStateCompat.Builder stateBuilder) {
         MediaSessionCompat.QueueItem currentMusic = mQueueManager.getCurrentMusic();
         if (currentMusic == null) {
@@ -172,37 +199,33 @@ public class PlaybackManager implements Playback.Callback {
         if (mediaId == null) {
             return;
         }
+        // 从mediaId中提取出唯一的musicId
         String musicId = MediaIDHelper.extractMusicIDFromMediaID(mediaId);
-        int favoriteIcon = mMusicProvider.isFavorite(musicId) ?
-                R.drawable.ic_star_on : R.drawable.ic_star_off;
+        int favoriteIcon = mMusicProvider.isFavorite(musicId) ? R.drawable.ic_star_on : R.drawable.ic_star_off;
         LogHelper.d(TAG, "updatePlaybackState, setting Favorite custom action of music ",
                 musicId, " current favorite=", mMusicProvider.isFavorite(musicId));
         Bundle customActionExtras = new Bundle();
         WearHelper.setShowCustomActionOnWear(customActionExtras, true);
-        stateBuilder.addCustomAction(new PlaybackStateCompat.CustomAction.Builder(
-                CUSTOM_ACTION_THUMBS_UP, mResources.getString(R.string.favorite), favoriteIcon)
+        stateBuilder.addCustomAction(new PlaybackStateCompat.CustomAction.Builder(CUSTOM_ACTION_THUMBS_UP,
+                mResources.getString(R.string.favorite), favoriteIcon)
                 .setExtras(customActionExtras)
                 .build());
-    }
-
-    private long getAvailableActions() {
-        long actions =
-                PlaybackStateCompat.ACTION_PLAY_PAUSE |
-                PlaybackStateCompat.ACTION_PLAY_FROM_MEDIA_ID |
-                PlaybackStateCompat.ACTION_PLAY_FROM_SEARCH |
-                PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS |
-                PlaybackStateCompat.ACTION_SKIP_TO_NEXT;
-        if (mPlayback.isPlaying()) {
-            actions |= PlaybackStateCompat.ACTION_PAUSE;
-        } else {
-            actions |= PlaybackStateCompat.ACTION_PLAY;
-        }
-        return actions;
     }
 
     /**
      * Implementation of the Playback.Callback interface
      */
+    @Override
+    public void setCurrentMediaId(String mediaId) {
+        LogHelper.d(TAG, "setCurrentMediaId", mediaId);
+        mQueueManager.setQueueFromMusic(mediaId);
+    }
+
+    @Override
+    public void onPlaybackStateChanged(int state) {
+        updatePlaybackState(null);
+    }
+
     @Override
     public void onCompletion() {
         // The media player finished playing the current song, so we go ahead
@@ -217,19 +240,8 @@ public class PlaybackManager implements Playback.Callback {
     }
 
     @Override
-    public void onPlaybackStatusChanged(int state) {
-        updatePlaybackState(null);
-    }
-
-    @Override
     public void onError(String error) {
         updatePlaybackState(error);
-    }
-
-    @Override
-    public void setCurrentMediaId(String mediaId) {
-        LogHelper.d(TAG, "setCurrentMediaId", mediaId);
-        mQueueManager.setQueueFromMusic(mediaId);
     }
 
 
@@ -276,6 +288,23 @@ public class PlaybackManager implements Playback.Callback {
         }
     }
 
+    /**
+     * 获取 Playback 实例
+     *
+     * @return
+     */
+    public Playback getPlayback() {
+        return mPlayback;
+    }
+
+    /**
+     * 获取受控端回调
+     *
+     * @return 受控端回调
+     */
+    public MediaSessionCompat.Callback getMediaSessionCallback() {
+        return mMediaSessionCallback;
+    }
 
     /**
      * 受控端回调实现类
@@ -292,10 +321,44 @@ public class PlaybackManager implements Playback.Callback {
         }
 
         @Override
-        public void onSkipToQueueItem(long queueId) {
-            LogHelper.d(TAG, "OnSkipToQueueItem:" + queueId);
-            mQueueManager.setCurrentQueueItem(queueId);
-            mQueueManager.updateMetadata();
+        public void onPlayFromMediaId(String mediaId, Bundle extras) {
+            LogHelper.d(TAG, "playFromMediaId mediaId:", mediaId, "  extras=", extras);
+            mQueueManager.setQueueFromMusic(mediaId);
+            handlePlayRequest();
+        }
+
+        /**
+         * Handle free and contextual searches.
+         * <p/>
+         * All voice searches on Android Auto are sent to this method through a connected
+         * {@link android.support.v4.media.session.MediaControllerCompat}.
+         * <p/>
+         * Threads and async handling:
+         * Search, as a potentially slow operation, should run in another thread.
+         * <p/>
+         * Since this method runs on the main thread, most apps with non-trivial metadata
+         * should defer the actual search to another thread (for example, by using
+         * an {@link AsyncTask} as we do here).
+         **/
+        @Override
+        public void onPlayFromSearch(final String query, final Bundle extras) {
+            LogHelper.d(TAG, "playFromSearch  query=", query, " extras=", extras);
+            mPlayback.setState(PlaybackStateCompat.STATE_CONNECTING);
+            mMusicProvider.retrieveMediaAsync(new MusicProvider.Callback() {
+                @Override
+                public void onMusicCatalogReady(boolean success) {
+                    if (!success) {
+                        updatePlaybackState("Could not load catalog");
+                    }
+                    boolean successSearch = mQueueManager.setQueueFromSearch(query, extras);
+                    if (successSearch) {
+                        handlePlayRequest();
+                        mQueueManager.updateMetadata();
+                    } else {
+                        updatePlaybackState("Could not find music");
+                    }
+                }
+            });
         }
 
         @Override
@@ -304,12 +367,6 @@ public class PlaybackManager implements Playback.Callback {
             mPlayback.seekTo((int) position);
         }
 
-        @Override
-        public void onPlayFromMediaId(String mediaId, Bundle extras) {
-            LogHelper.d(TAG, "playFromMediaId mediaId:", mediaId, "  extras=", extras);
-            mQueueManager.setQueueFromMusic(mediaId);
-            handlePlayRequest();
-        }
 
         @Override
         public void onPause() {
@@ -321,6 +378,13 @@ public class PlaybackManager implements Playback.Callback {
         public void onStop() {
             LogHelper.d(TAG, "stop. current state=" + mPlayback.getState());
             handleStopRequest(null);
+        }
+
+        @Override
+        public void onSkipToQueueItem(long queueId) {
+            LogHelper.d(TAG, "OnSkipToQueueItem:" + queueId);
+            mQueueManager.setCurrentQueueItem(queueId);
+            mQueueManager.updateMetadata();
         }
 
         @Override
@@ -363,56 +427,5 @@ public class PlaybackManager implements Playback.Callback {
                 LogHelper.e(TAG, "Unsupported action: ", action);
             }
         }
-
-        /**
-         * Handle free and contextual searches.
-         * <p/>
-         * All voice searches on Android Auto are sent to this method through a connected
-         * {@link android.support.v4.media.session.MediaControllerCompat}.
-         * <p/>
-         * Threads and async handling:
-         * Search, as a potentially slow operation, should run in another thread.
-         * <p/>
-         * Since this method runs on the main thread, most apps with non-trivial metadata
-         * should defer the actual search to another thread (for example, by using
-         * an {@link AsyncTask} as we do here).
-         **/
-        @Override
-        public void onPlayFromSearch(final String query, final Bundle extras) {
-            LogHelper.d(TAG, "playFromSearch  query=", query, " extras=", extras);
-
-            mPlayback.setState(PlaybackStateCompat.STATE_CONNECTING);
-            mMusicProvider.retrieveMediaAsync(new MusicProvider.Callback() {
-                @Override
-                public void onMusicCatalogReady(boolean success) {
-                    if (!success) {
-                        updatePlaybackState("Could not load catalog");
-                    }
-
-                    boolean successSearch = mQueueManager.setQueueFromSearch(query, extras);
-                    if (successSearch) {
-                        handlePlayRequest();
-                        mQueueManager.updateMetadata();
-                    } else {
-                        updatePlaybackState("Could not find music");
-                    }
-                }
-            });
-        }
-    }
-
-
-    /**
-     * 供 {@link com.example.android.uamp.MusicService } 实现的回调接口
-     */
-    public interface PlaybackServiceCallback {
-
-        void onPlaybackStart();
-
-        void onNotificationRequired();
-
-        void onPlaybackStop();
-
-        void onPlaybackStateUpdated(PlaybackStateCompat newState);
     }
 }

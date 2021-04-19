@@ -20,9 +20,17 @@ import android.support.v4.media.MediaMetadataCompat;
 
 import java.util.Iterator;
 
+/**
+ * 音乐数据源接口
+ */
 public interface MusicProviderSource {
 
     String CUSTOM_METADATA_TRACK_SOURCE = "__SOURCE__";
 
+    /**
+     * 返回数据迭代器
+     *
+     * @return 迭代器
+     */
     Iterator<MediaMetadataCompat> iterator();
 }

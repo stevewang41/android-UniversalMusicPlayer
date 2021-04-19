@@ -46,8 +46,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * A Fragment that lists all the various browsable queues available
- * from a {@link android.service.media.MediaBrowserService}.
+ * 列举出 {@link android.service.media.MediaBrowserService} 中所有可浏览数据队列的Fragment
  * <p/>
  * It uses a {@link MediaBrowserCompat} to connect to the {@link com.example.android.uamp.MusicService}.
  * Once connected, the fragment subscribes to get all the children.
@@ -56,93 +55,23 @@ import java.util.List;
 public class MediaBrowserFragment extends Fragment {
 
     private static final String TAG = LogHelper.makeLogTag(MediaBrowserFragment.class);
-
-    private static final String ARG_MEDIA_ID = "media_id";
-
-    private BrowseAdapter mBrowserAdapter;
-    private String mMediaId;
+    /** Arguments Key：当前媒体数据id */
+    private static final String ARG_KEY_MEDIA_ID = "media_id";
+    /** Activity实现接口 */
     private MediaFragmentListener mMediaFragmentListener;
+    /** 列表上方可能展示的错误描述View */
     private View mErrorView;
+    /** 列表上方可能展示的错误描述文案 */
     private TextView mErrorMessage;
-    private final BroadcastReceiver mConnectivityChangeReceiver = new BroadcastReceiver() {
-        private boolean oldOnline = false;
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            // We don't care about network changes while this fragment is not associated
-            // with a media ID (for example, while it is being initialized)
-            if (mMediaId != null) {
-                boolean isOnline = NetworkHelper.isOnline(context);
-                if (isOnline != oldOnline) {
-                    oldOnline = isOnline;
-                    checkForUserVisibleErrors(false);
-                    if (isOnline) {
-                        mBrowserAdapter.notifyDataSetChanged();
-                    }
-                }
-            }
-        }
-    };
+    /** 列表的Adapter */
+    private BrowseAdapter mBrowserAdapter;
+    /** 当前媒体数据id */
+    private String mMediaId;
 
-    // Receive callbacks from the MediaController. Here we update our state such as which queue
-    // is being shown, the current title and description and the PlaybackState.
-    private final MediaControllerCompat.Callback mMediaControllerCallback =
-            new MediaControllerCompat.Callback() {
-        @Override
-        public void onMetadataChanged(MediaMetadataCompat metadata) {
-            super.onMetadataChanged(metadata);
-            if (metadata == null) {
-                return;
-            }
-            LogHelper.d(TAG, "Received metadata change to media ",
-                    metadata.getDescription().getMediaId());
-            mBrowserAdapter.notifyDataSetChanged();
-        }
-
-        @Override
-        public void onPlaybackStateChanged(@NonNull PlaybackStateCompat state) {
-            super.onPlaybackStateChanged(state);
-            LogHelper.d(TAG, "Received state change: ", state);
-            checkForUserVisibleErrors(false);
-            mBrowserAdapter.notifyDataSetChanged();
-        }
-    };
-
-    /**
-     * 向 MediaBrowserService 发起数据订阅请求的回调接口
-     */
-    private final MediaBrowserCompat.SubscriptionCallback mSubscriptionCallback = new MediaBrowserCompat
-            .SubscriptionCallback() {
-
-        @Override
-        public void onChildrenLoaded(@NonNull String parentId,
-                                     @NonNull List<MediaBrowserCompat.MediaItem> children) {
-            try {
-                LogHelper.d(TAG, "fragment onChildrenLoaded, parentId=" + parentId +
-                        "  count=" + children.size());
-                checkForUserVisibleErrors(children.isEmpty());
-                mBrowserAdapter.clear();
-                for (MediaBrowserCompat.MediaItem item : children) {
-                    mBrowserAdapter.add(item);
-                }
-                mBrowserAdapter.notifyDataSetChanged(); // 获取到音频数据后刷新列表Adapter更新展示内容
-            } catch (Throwable t) {
-                LogHelper.e(TAG, "Error on childrenloaded", t);
-            }
-        }
-
-        @Override
-        public void onError(@NonNull String id) {
-            LogHelper.e(TAG, "browse fragment subscription onError, id=" + id);
-            Toast.makeText(getActivity(), R.string.error_loading_media, Toast.LENGTH_LONG).show();
-            checkForUserVisibleErrors(true);
-        }
-    };
 
     @Override
     public void onAttach(Activity activity) {
         super.onAttach(activity);
-        // If used on an activity that doesn't implement MediaFragmentListener, it
-        // will throw an exception as expected:
         mMediaFragmentListener = (MediaFragmentListener) activity;
     }
 
@@ -155,9 +84,8 @@ public class MediaBrowserFragment extends Fragment {
         mErrorView = rootView.findViewById(R.id.playback_error);
         mErrorMessage = (TextView) mErrorView.findViewById(R.id.error_message);
 
-        mBrowserAdapter = new BrowseAdapter(getActivity());
-
         ListView listView = (ListView) rootView.findViewById(R.id.list_view);
+        mBrowserAdapter = new BrowseAdapter(getActivity());
         listView.setAdapter(mBrowserAdapter);
         listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
@@ -167,7 +95,6 @@ public class MediaBrowserFragment extends Fragment {
                 mMediaFragmentListener.onMediaItemSelected(item);
             }
         });
-
         return rootView;
     }
 
@@ -175,19 +102,19 @@ public class MediaBrowserFragment extends Fragment {
     public void onStart() {
         super.onStart();
 
-        // fetch browsing information to fill the listview:
+        // fetch browsing information to fill the ListView:
         MediaBrowserCompat mediaBrowser = mMediaFragmentListener.getMediaBrowser();
 
         LogHelper.d(TAG, "fragment.onStart, mediaId=", mMediaId,
                 "  onConnected=" + mediaBrowser.isConnected());
 
-        if (mediaBrowser.isConnected()) {   // 如果 MediaBrowser 已经与 MediaBrowserService 完成连接，则可以发起订阅
+        if (mediaBrowser.isConnected()) {
             onConnected();
         }
 
-        // Registers BroadcastReceiver to track network connection changes.
-        this.getActivity().registerReceiver(mConnectivityChangeReceiver,
-            new IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION));
+        // 注册广播接收器跟踪网络连接状况
+        getActivity().registerReceiver(mConnectivityChangeReceiver,
+                new IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION));
     }
 
     @Override
@@ -199,9 +126,9 @@ public class MediaBrowserFragment extends Fragment {
         }
         MediaControllerCompat controller = MediaControllerCompat.getMediaController(getActivity());
         if (controller != null) {
-            controller.unregisterCallback(mMediaControllerCallback);
+            controller.unregisterCallback(mControllerCallback);
         }
-        this.getActivity().unregisterReceiver(mConnectivityChangeReceiver);
+        getActivity().unregisterReceiver(mConnectivityChangeReceiver);
     }
 
     @Override
@@ -210,23 +137,35 @@ public class MediaBrowserFragment extends Fragment {
         mMediaFragmentListener = null;
     }
 
+    /**
+     * 获取当前媒体数据id
+     *
+     * @return 媒体数据id
+     */
     public String getMediaId() {
         Bundle args = getArguments();
         if (args != null) {
-            return args.getString(ARG_MEDIA_ID);
+            return args.getString(ARG_KEY_MEDIA_ID);
         }
         return null;
     }
 
+    /**
+     * 设置当前媒体数据id
+     *
+     * @param mediaId 媒体数据id
+     */
     public void setMediaId(String mediaId) {
         Bundle args = new Bundle(1);
-        args.putString(MediaBrowserFragment.ARG_MEDIA_ID, mediaId);
+        args.putString(MediaBrowserFragment.ARG_KEY_MEDIA_ID, mediaId);
         setArguments(args);
     }
 
-    // Called when the MediaBrowser is connected. This method is either called by the
-    // fragment.onStart() or explicitly by the activity in the case where the connection
-    // completes after the onStart()
+    /**
+     * 如果MediaBrowser已经与MediaBrowserService完成连接，则发起数据订阅
+     * 对于根页面，其完全可见时尚未完成连接，这个方法由{@link MusicPlayerActivity#onConnected()}分发调用
+     * 对于次级页面，其完全可见时通常已完成连接，这个方法在{@link #onStart()}中调用
+     */
     public void onConnected() {
         if (isDetached()) {
             return;
@@ -247,16 +186,20 @@ public class MediaBrowserFragment extends Fragment {
         // subscriber or if the media content changes on the service side, so we need to
         // unsubscribe first.
         mMediaFragmentListener.getMediaBrowser().unsubscribe(mMediaId);
-
         mMediaFragmentListener.getMediaBrowser().subscribe(mMediaId, mSubscriptionCallback);
 
         // Add MediaController callback so we can redraw the list when metadata changes:
         MediaControllerCompat controller = MediaControllerCompat.getMediaController(getActivity());
         if (controller != null) {
-            controller.registerCallback(mMediaControllerCallback);
+            controller.registerCallback(mControllerCallback);
         }
     }
 
+    /**
+     * 检查是否要展示错误描述View
+     *
+     * @param forceError 是否强制展示错误
+     */
     private void checkForUserVisibleErrors(boolean forceError) {
         boolean showError = forceError;
         // If offline, message is about the lack of connectivity:
@@ -267,10 +210,10 @@ public class MediaBrowserFragment extends Fragment {
             // otherwise, if state is ERROR and metadata!=null, use playback state error message:
             MediaControllerCompat controller = MediaControllerCompat.getMediaController(getActivity());
             if (controller != null
-                && controller.getMetadata() != null
-                && controller.getPlaybackState() != null
-                && controller.getPlaybackState().getState() == PlaybackStateCompat.STATE_ERROR
-                && controller.getPlaybackState().getErrorMessage() != null) {
+                    && controller.getMetadata() != null
+                    && controller.getPlaybackState() != null
+                    && controller.getPlaybackState().getState() == PlaybackStateCompat.STATE_ERROR
+                    && controller.getPlaybackState().getErrorMessage() != null) {
                 mErrorMessage.setText(controller.getPlaybackState().getErrorMessage());
                 showError = true;
             } else if (forceError) {
@@ -281,27 +224,30 @@ public class MediaBrowserFragment extends Fragment {
         }
         mErrorView.setVisibility(showError ? View.VISIBLE : View.GONE);
         LogHelper.d(TAG, "checkForUserVisibleErrors. forceError=", forceError,
-            " showError=", showError,
-            " isOnline=", NetworkHelper.isOnline(getActivity()));
+                " showError=", showError,
+                " isOnline=", NetworkHelper.isOnline(getActivity()));
     }
 
+    /**
+     * 更新Bar标题文案
+     */
     private void updateTitle() {
         if (MediaIDHelper.MEDIA_ID_ROOT.equals(mMediaId)) {
             mMediaFragmentListener.setToolbarTitle(null);
             return;
         }
-
         MediaBrowserCompat mediaBrowser = mMediaFragmentListener.getMediaBrowser();
         mediaBrowser.getItem(mMediaId, new MediaBrowserCompat.ItemCallback() {
             @Override
             public void onItemLoaded(MediaBrowserCompat.MediaItem item) {
-                mMediaFragmentListener.setToolbarTitle(
-                        item.getDescription().getTitle());
+                mMediaFragmentListener.setToolbarTitle(item.getDescription().getTitle());
             }
         });
     }
 
-    // An adapter for showing the list of browsed MediaItem's
+    /**
+     * 展示可浏览媒体数据列表的Adapter
+     */
     private static class BrowseAdapter extends ArrayAdapter<MediaBrowserCompat.MediaItem> {
 
         public BrowseAdapter(Activity context) {
@@ -312,14 +258,89 @@ public class MediaBrowserFragment extends Fragment {
         @Override
         public View getView(int position, View convertView, @NonNull ViewGroup parent) {
             MediaBrowserCompat.MediaItem item = getItem(position);
-            return MediaItemViewHolder.setupListView((Activity) getContext(), convertView, parent,
-                    item);
+            return MediaItemViewHolder.setupListView((Activity) getContext(), convertView, parent, item);
         }
     }
 
-    public interface MediaFragmentListener extends MediaBrowserProvider {
-        void onMediaItemSelected(MediaBrowserCompat.MediaItem item);
-        void setToolbarTitle(CharSequence title);
-    }
+    /**
+     * MediaBrowse 向 MediaBrowserService 发起数据订阅请求的回调接口
+     */
+    private final MediaBrowserCompat.SubscriptionCallback mSubscriptionCallback = new MediaBrowserCompat
+            .SubscriptionCallback() {
+
+        @Override
+        public void onChildrenLoaded(@NonNull String parentId,
+                                     @NonNull List<MediaBrowserCompat.MediaItem> children) {
+            try {
+                LogHelper.d(TAG, "fragment onChildrenLoaded, parentId=" + parentId +
+                        "  count=" + children.size());
+                checkForUserVisibleErrors(children.isEmpty());
+                mBrowserAdapter.clear();
+                for (MediaBrowserCompat.MediaItem item : children) {
+                    mBrowserAdapter.add(item);
+                }
+                mBrowserAdapter.notifyDataSetChanged(); // 获取到媒体数据后刷新列表Adapter更新展示内容
+            } catch (Throwable t) {
+                LogHelper.e(TAG, "Error on childrenloaded", t);
+            }
+        }
+
+        @Override
+        public void onError(@NonNull String id) {
+            LogHelper.e(TAG, "browse fragment subscription onError, id=" + id);
+            Toast.makeText(getActivity(), R.string.error_loading_media, Toast.LENGTH_LONG).show();
+            checkForUserVisibleErrors(true);
+        }
+    };
+
+    /**
+     * MediaController回调，接收MediaSession的状态、数据变化，从而更新列表
+     */
+    private final MediaControllerCompat.Callback mControllerCallback = new MediaControllerCompat.Callback() {
+
+        @Override
+        public void onPlaybackStateChanged(@NonNull PlaybackStateCompat state) {
+            super.onPlaybackStateChanged(state);
+            LogHelper.d(TAG, "Received state change: ", state);
+            checkForUserVisibleErrors(false);
+            mBrowserAdapter.notifyDataSetChanged();
+        }
+
+        @Override
+        public void onMetadataChanged(MediaMetadataCompat metadata) {
+            super.onMetadataChanged(metadata);
+            if (metadata == null) {
+                return;
+            }
+            LogHelper.d(TAG, "Received metadata change to media ",
+                    metadata.getDescription().getMediaId());
+            mBrowserAdapter.notifyDataSetChanged();
+        }
+    };
+
+
+    /**
+     * 网络连接状态变化广播接收器
+     */
+    private final BroadcastReceiver mConnectivityChangeReceiver = new BroadcastReceiver() {
+
+        private boolean oldOnline = false;
+
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            // We don't care about network changes while this fragment is not associated
+            // with a media ID (for example, while it is being initialized)
+            if (mMediaId != null) {
+                boolean isOnline = NetworkHelper.isOnline(context);
+                if (isOnline != oldOnline) {
+                    oldOnline = isOnline;
+                    checkForUserVisibleErrors(false);
+                    if (isOnline) {
+                        mBrowserAdapter.notifyDataSetChanged();
+                    }
+                }
+            }
+        }
+    };
 
 }

@@ -20,7 +20,7 @@ import android.support.v4.media.session.MediaSessionCompat;
 
 import java.util.List;
 
-public class SimpleMetadataUpdateListener implements QueueManager.MetadataUpdateListener{
+public class SimpleMetadataUpdateListener implements QueueServiceCallback{
     @Override
     public void onMetadataChanged(MediaMetadataCompat metadata) {
     }

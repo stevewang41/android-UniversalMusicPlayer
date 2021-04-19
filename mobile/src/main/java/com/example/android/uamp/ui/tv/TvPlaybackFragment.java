@@ -323,8 +323,7 @@ public class TvPlaybackFragment extends PlaybackSupportFragment {
 
                 MediaControllerCompat controller = MediaControllerCompat.getMediaController(getActivity());
                 MediaSessionCompat.QueueItem item = (MediaSessionCompat.QueueItem) clickedItem;
-                if (!QueueHelper.isQueueItemPlaying(getActivity(), item)
-                        || controller.getPlaybackState().getState()
+                if (!QueueHelper.isQueueItemPlaying(getActivity(), item) || controller.getPlaybackState().getState()
                         != PlaybackStateCompat.STATE_PLAYING) {
                     controller.getTransportControls().skipToQueueItem(item.getQueueId());
                 }

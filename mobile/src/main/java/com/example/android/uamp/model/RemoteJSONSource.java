@@ -40,8 +40,7 @@ public class RemoteJSONSource implements MusicProviderSource {
 
     private static final String TAG = LogHelper.makeLogTag(RemoteJSONSource.class);
 
-    protected static final String CATALOG_URL =
-        "http://storage.googleapis.com/automotive-media/music.json";
+    protected static final String CATALOG_URL = "http://storage.googleapis.com/automotive-media/music.json";
 
     private static final String JSON_MUSIC = "music";
     private static final String JSON_TITLE = "title";
@@ -66,7 +65,7 @@ public class RemoteJSONSource implements MusicProviderSource {
 
                 if (jsonTracks != null) {
                     for (int j = 0; j < jsonTracks.length(); j++) {
-                        tracks.add(buildFromJSON(jsonTracks.getJSONObject(j), path));
+                        tracks.add(buildDataFromJSON(jsonTracks.getJSONObject(j), path));
                     }
                 }
             }
@@ -78,25 +77,57 @@ public class RemoteJSONSource implements MusicProviderSource {
     }
 
     /**
+     * 从服务端下载JSON文件，解析并返回JSON object
+     *
+     * @return result JSONObject containing the parsed representation.
+     */
+    private JSONObject fetchJSONFromUrl(String urlString) throws JSONException {
+        BufferedReader reader = null;
+        try {
+            URLConnection urlConnection = new URL(urlString).openConnection();
+            reader = new BufferedReader(new InputStreamReader(urlConnection.getInputStream(), "iso-8859-1"));
+            StringBuilder sb = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                sb.append(line);
+            }
+            return new JSONObject(sb.toString());
+        } catch (JSONException e) {
+            throw e;
+        } catch (Exception e) {
+            LogHelper.e(TAG, "Failed to parse the json for media list", e);
+            return null;
+        } finally {
+            if (reader != null) {
+                try {
+                    reader.close();
+                } catch (IOException e) {
+                    // ignore
+                }
+            }
+        }
+    }
+
+    /**
      * 解析JSON格式的数据，构建MediaMetadata对象
      *
-     * @param json
+     * @param jsonObj
      * @param basePath
      * @return
      * @throws JSONException
      */
-    private MediaMetadataCompat buildFromJSON(JSONObject json, String basePath) throws JSONException {
-        String title = json.getString(JSON_TITLE);
-        String album = json.getString(JSON_ALBUM);
-        String artist = json.getString(JSON_ARTIST);
-        String genre = json.getString(JSON_GENRE);
-        String source = json.getString(JSON_SOURCE);
-        String iconUrl = json.getString(JSON_IMAGE);
-        int trackNumber = json.getInt(JSON_TRACK_NUMBER);
-        int totalTrackCount = json.getInt(JSON_TOTAL_TRACK_COUNT);
-        int duration = json.getInt(JSON_DURATION) * 1000; // ms
+    private MediaMetadataCompat buildDataFromJSON(JSONObject jsonObj, String basePath) throws JSONException {
+        String title = jsonObj.getString(JSON_TITLE);
+        String album = jsonObj.getString(JSON_ALBUM);
+        String artist = jsonObj.getString(JSON_ARTIST);
+        String genre = jsonObj.getString(JSON_GENRE);
+        String source = jsonObj.getString(JSON_SOURCE);
+        String iconUrl = jsonObj.getString(JSON_IMAGE);
+        int trackNumber = jsonObj.getInt(JSON_TRACK_NUMBER);
+        int totalTrackCount = jsonObj.getInt(JSON_TOTAL_TRACK_COUNT);
+        int duration = jsonObj.getInt(JSON_DURATION) * 1000; // ms
 
-        LogHelper.d(TAG, "Found music track: ", json);
+        LogHelper.d(TAG, "Found music track: ", jsonObj);
 
         // Media is stored relative to JSON file
         if (!source.startsWith("http")) {
@@ -126,38 +157,5 @@ public class RemoteJSONSource implements MusicProviderSource {
                 .putLong(MediaMetadataCompat.METADATA_KEY_TRACK_NUMBER, trackNumber)
                 .putLong(MediaMetadataCompat.METADATA_KEY_NUM_TRACKS, totalTrackCount)
                 .build();
-    }
-
-    /**
-     * 从服务端下载JSON文件，解析并返回JSON object
-     *
-     * @return result JSONObject containing the parsed representation.
-     */
-    private JSONObject fetchJSONFromUrl(String urlString) throws JSONException {
-        BufferedReader reader = null;
-        try {
-            URLConnection urlConnection = new URL(urlString).openConnection();
-            reader = new BufferedReader(new InputStreamReader(
-                    urlConnection.getInputStream(), "iso-8859-1"));
-            StringBuilder sb = new StringBuilder();
-            String line;
-            while ((line = reader.readLine()) != null) {
-                sb.append(line);
-            }
-            return new JSONObject(sb.toString());
-        } catch (JSONException e) {
-            throw e;
-        } catch (Exception e) {
-            LogHelper.e(TAG, "Failed to parse the json for media list", e);
-            return null;
-        } finally {
-            if (reader != null) {
-                try {
-                    reader.close();
-                } catch (IOException e) {
-                    // ignore
-                }
-            }
-        }
     }
 }

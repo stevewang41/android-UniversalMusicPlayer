@@ -41,8 +41,7 @@ public class QueueHelper {
 
     private static final int RANDOM_QUEUE_SIZE = 10;
 
-    public static List<MediaSessionCompat.QueueItem> getPlayingQueue(String mediaId,
-            MusicProvider musicProvider) {
+    public static List<MediaSessionCompat.QueueItem> getPlayingQueue(String mediaId, MusicProvider musicProvider) {
 
         // extract the browsing hierarchy from the media ID:
         String[] hierarchy = MediaIDHelper.getHierarchy(mediaId);
@@ -72,8 +71,8 @@ public class QueueHelper {
         return convertToQueue(tracks, hierarchy[0], hierarchy[1]);
     }
 
-    public static List<MediaSessionCompat.QueueItem> getPlayingQueueFromSearch(String query,
-            Bundle queryParams, MusicProvider musicProvider) {
+    public static List<MediaSessionCompat.QueueItem> getPlayingQueueFromSearch(String query, Bundle queryParams,
+                                                                               MusicProvider musicProvider) {
 
         LogHelper.d(TAG, "Creating playing queue for musics from search: ", query,
             " params=", queryParams);
@@ -118,8 +117,14 @@ public class QueueHelper {
     }
 
 
-    public static int getMusicIndexOnQueue(Iterable<MediaSessionCompat.QueueItem> queue,
-             String mediaId) {
+    /**
+     * 获取指定曲目在当前队列中的索引
+     *
+     * @param queue   当前队列
+     * @param mediaId 媒体数据id
+     * @return
+     */
+    public static int getMusicIndexOnQueue(Iterable<MediaSessionCompat.QueueItem> queue, String mediaId) {
         int index = 0;
         for (MediaSessionCompat.QueueItem item : queue) {
             if (mediaId.equals(item.getDescription().getMediaId())) {
@@ -130,8 +135,14 @@ public class QueueHelper {
         return -1;
     }
 
-    public static int getMusicIndexOnQueue(Iterable<MediaSessionCompat.QueueItem> queue,
-             long queueId) {
+    /**
+     * 获取指定队列在当前队列（每个元素仍是队列）中的索引
+     *
+     * @param queue   当前队列
+     * @param queueId 指定队列id
+     * @return
+     */
+    public static int getMusicIndexOnQueue(Iterable<MediaSessionCompat.QueueItem> queue, long queueId) {
         int index = 0;
         for (MediaSessionCompat.QueueItem item : queue) {
             if (queueId == item.getQueueId()) {
@@ -142,33 +153,27 @@ public class QueueHelper {
         return -1;
     }
 
-    private static List<MediaSessionCompat.QueueItem> convertToQueue(
-            Iterable<MediaMetadataCompat> tracks, String... categories) {
+    private static List<MediaSessionCompat.QueueItem> convertToQueue(Iterable<MediaMetadataCompat> tracks,
+                                                                     String... categories) {
         List<MediaSessionCompat.QueueItem> queue = new ArrayList<>();
         int count = 0;
         for (MediaMetadataCompat track : tracks) {
-
             // We create a hierarchy-aware mediaID, so we know what the queue is about by looking
             // at the QueueItem media IDs.
-            String hierarchyAwareMediaID = MediaIDHelper.createMediaID(
-                    track.getDescription().getMediaId(), categories);
-
+            String hierarchyAwareMediaID = MediaIDHelper.createMediaID(track.getDescription().getMediaId(), categories);
             MediaMetadataCompat trackCopy = new MediaMetadataCompat.Builder(track)
                     .putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, hierarchyAwareMediaID)
                     .build();
-
             // We don't expect queues to change after created, so we use the item index as the
             // queueId. Any other number unique in the queue would work.
-            MediaSessionCompat.QueueItem item = new MediaSessionCompat.QueueItem(
-                    trackCopy.getDescription(), count++);
+            MediaSessionCompat.QueueItem item = new MediaSessionCompat.QueueItem(trackCopy.getDescription(), count++);
             queue.add(item);
         }
         return queue;
-
     }
 
     /**
-     * Create a random queue with at most {@link #RANDOM_QUEUE_SIZE} elements.
+     * 获取一个随机的播放队列，最多有 {@link #RANDOM_QUEUE_SIZE} 个元素
      *
      * @param musicProvider the provider used for fetching music.
      * @return list containing {@link MediaSessionCompat.QueueItem}'s
@@ -183,11 +188,10 @@ public class QueueHelper {
             result.add(metadata);
         }
         LogHelper.d(TAG, "getRandomQueue: result.size=", result.size());
-
         return convertToQueue(result, MEDIA_ID_MUSICS_BY_SEARCH, "random");
     }
 
-    public static boolean isIndexPlayable(int index, List<MediaSessionCompat.QueueItem> queue) {
+    public static boolean isIndexPlayable(List<MediaSessionCompat.QueueItem> queue, int index) {
         return (queue != null && index >= 0 && index < queue.size());
     }
 

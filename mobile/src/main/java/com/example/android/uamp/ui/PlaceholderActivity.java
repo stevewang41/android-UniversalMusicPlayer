@@ -20,8 +20,7 @@ import android.os.Bundle;
 import com.example.android.uamp.R;
 
 /**
- * Placeholder activity for features that are not implemented in this sample, but
- * are in the navigation drawer.
+ * 对应侧滑菜单中的第二个选项，作为一个占位Activity方便使用者添加自己的代码
  */
 public class PlaceholderActivity extends BaseActivity {
 

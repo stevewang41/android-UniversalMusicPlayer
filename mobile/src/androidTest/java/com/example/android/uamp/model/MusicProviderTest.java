@@ -191,13 +191,11 @@ public class MusicProviderTest {
         };
 
         // test an invalid root
-        List<MediaBrowserCompat.MediaItem> invalid = provider.getChildren(
-                "INVALID_MEDIA_ID", resources);
+        List<MediaBrowserCompat.MediaItem> invalid = provider.getChildren(resources, "INVALID_MEDIA_ID");
         assertEquals(0, invalid.size());
 
         // test level 1 (list of category types - only "by genre" for now)
-        List<MediaBrowserCompat.MediaItem> level1 = provider.getChildren(
-                MediaIDHelper.MEDIA_ID_ROOT, resources);
+        List<MediaBrowserCompat.MediaItem> level1 = provider.getChildren(resources, MediaIDHelper.MEDIA_ID_ROOT);
         assertEquals(1, level1.size());
 
         // test level 2 (list of genres)
@@ -205,15 +203,12 @@ public class MusicProviderTest {
         for (String ignored : provider.getGenres()) {
             genreCount++;
         }
-        List<MediaBrowserCompat.MediaItem> level2 = provider.getChildren(
-                level1.get(0).getMediaId(), resources);
+        List<MediaBrowserCompat.MediaItem> level2 = provider.getChildren(resources, level1.get(0).getMediaId());
         assertEquals(genreCount, level2.size());
 
         // test level 3 (list of music for a given genre)
-        List<MediaBrowserCompat.MediaItem> level3 = provider.getChildren(
-                level2.get(0).getMediaId(), resources);
-        String genre = MediaIDHelper.extractBrowseCategoryValueFromMediaID(
-                level2.get(0).getMediaId());
+        List<MediaBrowserCompat.MediaItem> level3 = provider.getChildren(resources, level2.get(0).getMediaId());
+        String genre = MediaIDHelper.extractBrowseCategoryValueFromMediaID(level2.get(0).getMediaId());
         for (MediaBrowserCompat.MediaItem mediaItem: level3) {
             assertTrue(mediaItem.isPlayable());
             assertFalse(mediaItem.isBrowsable());
@@ -223,8 +218,7 @@ public class MusicProviderTest {
         }
 
         // test an invalid level 4
-        List<MediaBrowserCompat.MediaItem> invalidLevel4 = provider.getChildren(
-                level3.get(0).getMediaId(), resources);
+        List<MediaBrowserCompat.MediaItem> invalidLevel4 = provider.getChildren(resources, level3.get(0).getMediaId());
         assertTrue(invalidLevel4.isEmpty());
    }
 }

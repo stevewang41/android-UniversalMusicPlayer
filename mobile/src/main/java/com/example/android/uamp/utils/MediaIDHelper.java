@@ -39,25 +39,27 @@ public class MediaIDHelper {
     private static final char LEAF_SEPARATOR = '|';
 
     /**
+     * 构建一个代表可浏览或可播放的媒体数据id
+     * <p>
      * Create a String value that represents a playable or a browsable media.
-     *
+     * <p>
      * Encode the media browseable categories, if any, and the unique music ID, if any,
      * into a single String mediaID.
-     *
+     * <p>
      * MediaIDs are of the form <categoryType>/<categoryValue>|<musicUniqueId>, to make it easy
      * to find the category (like genre) that a music was selected from, so we
      * can correctly build the playing queue. This is specially useful when
      * one music can appear in more than one list, like "by genre -> genre_1"
      * and "by artist -> artist_1".
-
-     * @param musicID Unique music ID for playable items, or null for browseable items.
+     *
+     * @param musicID    Unique music ID for playable items, or null for browseable items.
      * @param categories hierarchy of categories representing this item's browsing parents
      * @return a hierarchy-aware media ID
      */
     public static String createMediaID(String musicID, String... categories) {
         StringBuilder sb = new StringBuilder();
         if (categories != null) {
-            for (int i=0; i < categories.length; i++) {
+            for (int i = 0; i < categories.length; i++) {
                 if (!isValidCategory(categories[i])) {
                     throw new IllegalArgumentException("Invalid category: " + categories[i]);
                 }
@@ -76,8 +78,8 @@ public class MediaIDHelper {
     private static boolean isValidCategory(String category) {
         return category == null ||
                 (
-                    category.indexOf(CATEGORY_SEPARATOR) < 0 &&
-                    category.indexOf(LEAF_SEPARATOR) < 0
+                        category.indexOf(CATEGORY_SEPARATOR) < 0 &&
+                                category.indexOf(LEAF_SEPARATOR) < 0
                 );
     }
 
@@ -93,7 +95,7 @@ public class MediaIDHelper {
     public static String extractMusicIDFromMediaID(@NonNull String mediaID) {
         int pos = mediaID.indexOf(LEAF_SEPARATOR);
         if (pos >= 0) {
-            return mediaID.substring(pos+1);
+            return mediaID.substring(pos + 1);
         }
         return null;
     }
@@ -114,50 +116,44 @@ public class MediaIDHelper {
         return mediaID.split(String.valueOf(CATEGORY_SEPARATOR));
     }
 
-    public static String extractBrowseCategoryValueFromMediaID(@NonNull String mediaID) {
-        String[] hierarchy = getHierarchy(mediaID);
+    public static String extractBrowseCategoryValueFromMediaID(@NonNull String mediaId) {
+        String[] hierarchy = getHierarchy(mediaId);
         if (hierarchy.length == 2) {
             return hierarchy[1];
         }
         return null;
     }
 
-    public static boolean isBrowseable(@NonNull String mediaID) {
-        return mediaID.indexOf(LEAF_SEPARATOR) < 0;
+    public static boolean isBrowseable(@NonNull String mediaId) {
+        return mediaId.indexOf(LEAF_SEPARATOR) < 0;
     }
 
-    public static String getParentMediaID(@NonNull String mediaID) {
-        String[] hierarchy = getHierarchy(mediaID);
-        if (!isBrowseable(mediaID)) {
+    public static String getParentMediaID(@NonNull String mediaId) {
+        String[] hierarchy = getHierarchy(mediaId);
+        if (!isBrowseable(mediaId)) {
             return createMediaID(null, hierarchy);
         }
         if (hierarchy.length <= 1) {
             return MEDIA_ID_ROOT;
         }
-        String[] parentHierarchy = Arrays.copyOf(hierarchy, hierarchy.length-1);
+        String[] parentHierarchy = Arrays.copyOf(hierarchy, hierarchy.length - 1);
         return createMediaID(null, parentHierarchy);
     }
 
     /**
      * Determine if media item is playing (matches the currently playing media item).
      *
-     * @param context for retrieving the {@link MediaControllerCompat}
+     * @param context   for retrieving the {@link MediaControllerCompat}
      * @param mediaItem to compare to currently playing {@link MediaBrowserCompat.MediaItem}
      * @return boolean indicating whether media item matches currently playing media item
      */
     public static boolean isMediaItemPlaying(Activity context, MediaBrowserCompat.MediaItem mediaItem) {
-        // Media item is considered to be playing or paused based on the controller's current
-        // media id
+        // Media item is considered to be playing or paused based on the controller's current media id
         MediaControllerCompat controller = MediaControllerCompat.getMediaController(context);
         if (controller != null && controller.getMetadata() != null) {
-            String currentPlayingMediaId = controller.getMetadata().getDescription()
-                    .getMediaId();
-            String itemMusicId = MediaIDHelper.extractMusicIDFromMediaID(
-                    mediaItem.getDescription().getMediaId());
-            if (currentPlayingMediaId != null
-                    && TextUtils.equals(currentPlayingMediaId, itemMusicId)) {
-                return true;
-            }
+            String currentPlayingMediaId = controller.getMetadata().getDescription().getMediaId();
+            String itemMusicId = MediaIDHelper.extractMusicIDFromMediaID(mediaItem.getDescription().getMediaId());
+            return currentPlayingMediaId != null && TextUtils.equals(currentPlayingMediaId, itemMusicId);
         }
         return false;
     }

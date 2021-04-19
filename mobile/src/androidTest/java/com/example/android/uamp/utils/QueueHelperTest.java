@@ -159,13 +159,13 @@ public class QueueHelperTest {
         // get a queue with all songs with "c" on its title
         List<MediaSessionCompat.QueueItem> queue = QueueHelper.getPlayingQueueFromSearch("c", null, provider);
 
-        assertFalse(QueueHelper.isIndexPlayable(-1, queue));
-        assertFalse(QueueHelper.isIndexPlayable(queue.size(), queue));
-        assertFalse(QueueHelper.isIndexPlayable(Integer.MAX_VALUE, queue));
+        assertFalse(QueueHelper.isIndexPlayable(queue, -1));
+        assertFalse(QueueHelper.isIndexPlayable(queue, queue.size()));
+        assertFalse(QueueHelper.isIndexPlayable(queue, Integer.MAX_VALUE));
 
         if (!queue.isEmpty()) {
-            assertTrue(QueueHelper.isIndexPlayable(queue.size() - 1, queue));
-            assertTrue(QueueHelper.isIndexPlayable(0, queue));
+            assertTrue(QueueHelper.isIndexPlayable(queue, queue.size() - 1));
+            assertTrue(QueueHelper.isIndexPlayable(queue, 0));
         }
     }
 }
