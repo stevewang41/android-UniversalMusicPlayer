@@ -130,9 +130,9 @@ public class MusicProvider {
 
                 Iterator<MediaMetadataCompat> tracks = mSource.iterator();
                 while (tracks.hasNext()) {
-                    MediaMetadataCompat item = tracks.next();
-                    String musicId = item.getString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID);
-                    mMusicListById.put(musicId, new MutableMediaMetadata(musicId, item));
+                    MediaMetadataCompat mediaMetadata = tracks.next();
+                    String musicId = mediaMetadata.getString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID);
+                    mMusicListById.put(musicId, new MutableMediaMetadata(musicId, mediaMetadata));
                 }
                 buildMusicListsByGenre();
                 mCurrentState = State.INITIALIZED;

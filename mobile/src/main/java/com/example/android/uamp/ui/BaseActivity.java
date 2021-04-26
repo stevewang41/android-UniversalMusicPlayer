@@ -65,6 +65,7 @@ public abstract class BaseActivity extends ActionBarCastActivity implements Medi
 
         // Connect a media browser just to get the media session token. There are other ways
         // this can be done, for example by sharing the session token directly.
+        // MediaBrowserService作为参数创建MediaBrowser，这个Service会在MediaBrowser调用connect()时通过bindService()方式启动
         mMediaBrowser = new MediaBrowserCompat(this,
                 new ComponentName(this, MusicService.class), mConnectionCallback, null);
     }

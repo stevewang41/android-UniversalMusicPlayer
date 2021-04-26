@@ -62,7 +62,7 @@ public class PlaybackManager implements Playback.Callback {
     /** Playback实例，默认为 {@link LocalPlayback} */
     private Playback mPlayback;
     /** 受控端回调 */
-    private final MediaSessionCallback mMediaSessionCallback;
+    private final MediaSessionCallback mSessionCallback;
 
 
     /**
@@ -85,7 +85,7 @@ public class PlaybackManager implements Playback.Callback {
         mQueueManager = queueManager;
         mPlayback = playback;
         mPlayback.setCallback(this);    // 拿到Playback的实例后，将自身作为回调传入，完成与Playback双向关联
-        mMediaSessionCallback = new MediaSessionCallback();
+        mSessionCallback = new MediaSessionCallback();
     }
 
     /**
@@ -302,8 +302,8 @@ public class PlaybackManager implements Playback.Callback {
      *
      * @return 受控端回调
      */
-    public MediaSessionCompat.Callback getMediaSessionCallback() {
-        return mMediaSessionCallback;
+    public MediaSessionCallback getMediaSessionCallback() {
+        return mSessionCallback;
     }
 
     /**

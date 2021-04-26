@@ -31,7 +31,8 @@ import java.io.IOException;
 public final class AlbumArtCache {
     private static final String TAG = LogHelper.makeLogTag(AlbumArtCache.class);
 
-    private static final int MAX_ALBUM_ART_CACHE_SIZE = 12*1024*1024;  // 12 MB
+    /** 最大缓存大小12MB */
+    private static final int MAX_ALBUM_ART_CACHE_SIZE = 12*1024*1024;
     private static final int MAX_ART_WIDTH = 800;  // pixels
     private static final int MAX_ART_HEIGHT = 480;  // pixels
 
@@ -45,6 +46,7 @@ public final class AlbumArtCache {
     private static final int BIG_BITMAP_INDEX = 0;
     private static final int ICON_BITMAP_INDEX = 1;
 
+    /** LRU缓存，key是url，value是bitmap */
     private final LruCache<String, Bitmap[]> mCache;
 
     private static final AlbumArtCache sInstance = new AlbumArtCache();
@@ -54,8 +56,7 @@ public final class AlbumArtCache {
     }
 
     private AlbumArtCache() {
-        // Holds no more than MAX_ALBUM_ART_CACHE_SIZE bytes, bounded by maxmemory/4 and
-        // Integer.MAX_VALUE:
+        // Holds no more than MAX_ALBUM_ART_CACHE_SIZE bytes, bounded by maxmemory/4 and Integer.MAX_VALUE:
         int maxSize = Math.min(MAX_ALBUM_ART_CACHE_SIZE,
             (int) (Math.min(Integer.MAX_VALUE, Runtime.getRuntime().maxMemory()/4)));
         mCache = new LruCache<String, Bitmap[]>(maxSize) {
